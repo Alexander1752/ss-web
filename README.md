@@ -1,10 +1,4 @@
-# Laborator 1: Captură și transmisie de imagini prin aplicație web
-
-## Sisteme de Securitate - Proiect ss-web
-
-
-
-# Setup Proiect ss-web
+# Proiect ss-web - echipa LF4A
 
 Acest proiect este o aplicație web care primește imagini de la dispozitive mobile prin MQTT, le procesează cu OCR și permite căutarea pe baza textului extras.
 
