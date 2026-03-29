@@ -421,3 +421,16 @@ Pentru probleme sau întrebări, consultați:
 2. Pozele apar automat în lista de fotografii
 3. Când vrei să oprești, apasă **Stop Live**
 4. Camera primește comanda și se oprește din trimitere
+
+## UTesting
+În procesul de rulare a testelor backend au apărut două probleme de build, ambele rezolvate:
+
+Mock-uri nealiniate cu interfețele curente
+Eroarea din tests pentru PhotoRepository a fost cauzată de un mock neactualizat (lipseau metodele noi din interfață).
+Soluție: actualizarea mock-ului pentru a include toate metodele interfeței (GetByID, Delete, DeleteAll), astfel încât pachetul routes să compileze corect la testare.
+
+Dependențe native lipsă pentru OCR (gosseract)
+Build-ul a eșuat cu eroarea leptonica/allheaders.h: No such file or directory.
+Soluție: instalarea bibliotecilor native necesare în WSL/Linux:
+sudo apt update
+sudo apt install -y libleptonica-dev libtesseract-dev tesseract-ocr pkg-config

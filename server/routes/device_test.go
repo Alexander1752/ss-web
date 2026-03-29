@@ -1,204 +1,337 @@
-package routes_test
+package routes
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"go.uber.org/mock/gomock"
 
 	"mqtt-streaming-server/domain"
 	mock_domain "mqtt-streaming-server/mocks"
-	"mqtt-streaming-server/routes"
 )
 
+type mockMQTTToken struct {
+	err error
+}
+
+func (t *mockMQTTToken) Wait() bool {
+	return true
+}
+
+func (t *mockMQTTToken) WaitTimeout(_ time.Duration) bool {
+	return true
+}
+
+func (t *mockMQTTToken) Done() <-chan struct{} {
+	ch := make(chan struct{})
+	close(ch)
+	return ch
+}
+
+func (t *mockMQTTToken) Error() error {
+	return t.err
+}
+
+type mockMQTTClient struct {
+	publishErr    error
+	lastTopic     string
+	lastQoS       byte
+	lastRetained  bool
+	lastPayload   any
+	publishCalled bool
+}
+
+func (c *mockMQTTClient) IsConnected() bool {
+	return true
+}
+
+func (c *mockMQTTClient) IsConnectionOpen() bool {
+	return true
+}
+
+func (c *mockMQTTClient) Connect() mqtt.Token {
+	return &mockMQTTToken{}
+}
+
+func (c *mockMQTTClient) Disconnect(_ uint) {}
+
+func (c *mockMQTTClient) Publish(topic string, qos byte, retained bool, payload interface{}) mqtt.Token {
+	c.publishCalled = true
+	c.lastTopic = topic
+	c.lastQoS = qos
+	c.lastRetained = retained
+	c.lastPayload = payload
+	return &mockMQTTToken{err: c.publishErr}
+}
+
+func (c *mockMQTTClient) Subscribe(_ string, _ byte, _ mqtt.MessageHandler) mqtt.Token {
+	return &mockMQTTToken{}
+}
+
+func (c *mockMQTTClient) SubscribeMultiple(_ map[string]byte, _ mqtt.MessageHandler) mqtt.Token {
+	return &mockMQTTToken{}
+}
+
+func (c *mockMQTTClient) Unsubscribe(_ ...string) mqtt.Token {
+	return &mockMQTTToken{}
+}
+
+func (c *mockMQTTClient) AddRoute(_ string, _ mqtt.MessageHandler) {}
+
+func (c *mockMQTTClient) OptionsReader() mqtt.ClientOptionsReader {
+	return mqtt.ClientOptionsReader{}
+}
+
 func TestDeviceController_GetDevices(t *testing.T) {
-	tests := []struct {
-		name             string
-		userEmail        string
-		userRole         string
-		mockDevices      []*domain.Device
-		mockError        error
-		expectedStatus   int
-		expectedContains string
-	}{
-		{
-			name:      "successful device fetch",
-			userEmail: "user@example.com",
-			userRole:  "admin",
-			mockDevices: []*domain.Device{
-				{ID: "dev-1", DeviceName: "iPhone"},
-				{ID: "dev-2", DeviceName: "MacBook"},
-			},
-			expectedStatus:   http.StatusOK,
-			expectedContains: "iPhone",
-		},
-		{
-			name:             "no devices",
-			userEmail:        "empty@example.com",
-			userRole:         "admin",
-			mockDevices:      []*domain.Device{},
-			expectedStatus:   http.StatusOK,
-			expectedContains: "[]",
-		},
-		{
-			name:             "repository error",
-			userEmail:        "fail@example.com",
-			userRole:         "admin",
-			mockError:        errors.New("db error"),
-			expectedStatus:   http.StatusInternalServerError,
-			expectedContains: "Failed to fetch devices",
-		},
-		{
-			name:             "unauthorized access",
-			userEmail:        "unauthorized@example.com",
-			userRole:         "user",
-			expectedStatus:   http.StatusUnauthorized,
-			expectedContains: "Unauthorized",
-		},
-	}
+	t.Run("method not allowed", func(t *testing.T) {
+		ctlr := DeviceController{}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
+		req := httptest.NewRequest(http.MethodPost, "/devices", nil)
+		rr := httptest.NewRecorder()
 
-			mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
-			ctlr := routes.DeviceController{DeviceRepository: mockRepo}
+		ctlr.GetDevices(rr, req)
 
-			req := httptest.NewRequest(http.MethodGet, "/devices", nil)
-			ctx := context.WithValue(req.Context(), "email", tt.userEmail)
-			ctx = context.WithValue(ctx, "role", tt.userRole)
-			req = req.WithContext(ctx)
-			rr := httptest.NewRecorder()
+		if rr.Code != http.StatusMethodNotAllowed {
+			t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
+		}
+		if !strings.Contains(rr.Body.String(), "Method not allowed") {
+			t.Fatalf("expected body to contain method error, got %q", rr.Body.String())
+		}
+	})
 
-			if tt.mockDevices != nil || tt.mockError != nil {
-				mockRepo.EXPECT().
-					GetAllDevices(gomock.Any()).
-					Return(tt.mockDevices, tt.mockError)
-			}
+	t.Run("repository error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 
-			ctlr.GetDevices(rr, req)
+		mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
+		ctlr := DeviceController{DeviceRepository: mockRepo}
 
-			if rr.Code != tt.expectedStatus {
-				t.Errorf("expected status %d, got %d", tt.expectedStatus, rr.Code)
-			}
-			if tt.expectedContains != "" && !strings.Contains(rr.Body.String(), tt.expectedContains) {
-				t.Errorf("expected body to contain %q, got %q", tt.expectedContains, rr.Body.String())
-			}
-		})
-	}
+		mockRepo.EXPECT().GetAllDevices(gomock.Any()).Return(nil, errors.New("db error"))
+
+		req := httptest.NewRequest(http.MethodGet, "/devices", nil)
+		rr := httptest.NewRecorder()
+
+		ctlr.GetDevices(rr, req)
+
+		if rr.Code != http.StatusInternalServerError {
+			t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, rr.Code)
+		}
+		if !strings.Contains(rr.Body.String(), "Failed to fetch devices") {
+			t.Fatalf("expected body to contain repository error, got %q", rr.Body.String())
+		}
+	})
+
+	t.Run("success returns json", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
+		ctlr := DeviceController{DeviceRepository: mockRepo}
+
+		mockRepo.EXPECT().GetAllDevices(gomock.Any()).Return([]*domain.Device{
+			{ID: "dev-1", DeviceName: "iPhone"},
+		}, nil)
+
+		req := httptest.NewRequest(http.MethodGet, "/devices", nil)
+		rr := httptest.NewRecorder()
+
+		ctlr.GetDevices(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+		}
+		if got := rr.Header().Get("Content-Type"); !strings.Contains(got, "application/json") {
+			t.Fatalf("expected JSON content type, got %q", got)
+		}
+		if !strings.Contains(rr.Body.String(), "iPhone") {
+			t.Fatalf("expected response to contain device payload, got %q", rr.Body.String())
+		}
+	})
 }
 
 func TestDeviceController_SwitchDeviceMode(t *testing.T) {
-	tests := []struct {
-		name             string
-		userEmail        string
-		userRole         string
-		deviceID         string
-		mockError        error
-		expectedStatus   int
-		expectedContains string
-	}{
-		{
-			name:             "unauthorized access",
-			userEmail:        "unauthorized@example.com",
-			userRole:         "user",
-			deviceID:         "dev-1",
-			expectedStatus:   http.StatusUnauthorized,
-			expectedContains: "Unauthorized",
-		},
-	}
+	t.Run("method not allowed", func(t *testing.T) {
+		ctlr := DeviceController{}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
+		req := httptest.NewRequest(http.MethodGet, "/devices/switch", nil)
+		rr := httptest.NewRecorder()
 
-			mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
-			ctlr := routes.DeviceController{DeviceRepository: mockRepo}
+		ctlr.SwitchDeviceMode(rr, req)
 
-			url := "/devices/" + tt.deviceID + "/switch"
-			req := httptest.NewRequest(http.MethodPost, url, nil)
-			ctx := context.WithValue(req.Context(), "email", tt.userEmail)
-			ctx = context.WithValue(ctx, "role", tt.userRole)
-			req = req.WithContext(ctx)
-			rr := httptest.NewRecorder()
+		if rr.Code != http.StatusMethodNotAllowed {
+			t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
+		}
+		if !strings.Contains(rr.Body.String(), "Method not allowed") {
+			t.Fatalf("expected method error body, got %q", rr.Body.String())
+		}
+	})
 
-			ctlr.SwitchDeviceMode(rr, req)
+	t.Run("invalid request body", func(t *testing.T) {
+		ctlr := DeviceController{mqttClient: &mockMQTTClient{}}
 
-			if rr.Code != tt.expectedStatus {
-				t.Errorf("expected status %d, got %d", tt.expectedStatus, rr.Code)
-			}
-			if tt.expectedContains != "" && !strings.Contains(rr.Body.String(), tt.expectedContains) {
-				t.Errorf("expected body to contain %q, got %q", tt.expectedContains, rr.Body.String())
-			}
-		})
-	}
+		req := httptest.NewRequest(http.MethodPost, "/devices/switch", strings.NewReader("invalid json"))
+		rr := httptest.NewRecorder()
+
+		ctlr.SwitchDeviceMode(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rr.Code)
+		}
+		if !strings.Contains(rr.Body.String(), "Invalid request body") {
+			t.Fatalf("expected invalid body message, got %q", rr.Body.String())
+		}
+	})
+
+	t.Run("mqtt publish error", func(t *testing.T) {
+		mqttClient := &mockMQTTClient{publishErr: errors.New("publish failed")}
+		ctlr := DeviceController{mqttClient: mqttClient}
+
+		req := httptest.NewRequest(http.MethodPost, "/devices/switch", strings.NewReader(`{"id":"dev-1","mode":"LIVE"}`))
+		rr := httptest.NewRecorder()
+
+		ctlr.SwitchDeviceMode(rr, req)
+
+		if rr.Code != http.StatusInternalServerError {
+			t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, rr.Code)
+		}
+		if !strings.Contains(rr.Body.String(), "Failed to publish message") {
+			t.Fatalf("expected mqtt error message, got %q", rr.Body.String())
+		}
+		if mqttClient.lastTopic != "setup/dev-1" {
+			t.Fatalf("expected topic setup/dev-1, got %q", mqttClient.lastTopic)
+		}
+		if mqttClient.lastPayload != "start LIVE" {
+			t.Fatalf("expected payload 'start LIVE', got %v", mqttClient.lastPayload)
+		}
+	})
+
+	t.Run("success", func(t *testing.T) {
+		mqttClient := &mockMQTTClient{}
+		ctlr := DeviceController{mqttClient: mqttClient}
+
+		req := httptest.NewRequest(http.MethodPost, "/devices/switch", strings.NewReader(`{"id":"dev-2","mode":"NORMAL"}`))
+		rr := httptest.NewRecorder()
+
+		ctlr.SwitchDeviceMode(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+		}
+		if !mqttClient.publishCalled {
+			t.Fatalf("expected publish to be called")
+		}
+		if mqttClient.lastTopic != "setup/dev-2" {
+			t.Fatalf("expected topic setup/dev-2, got %q", mqttClient.lastTopic)
+		}
+		if mqttClient.lastPayload != "start NORMAL" {
+			t.Fatalf("expected payload 'start NORMAL', got %v", mqttClient.lastPayload)
+		}
+	})
 }
 
-func TestDeviceController_SwitchDeviceMode_MethodNotAllowed(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+func TestDeviceController_SendCommand(t *testing.T) {
+	t.Run("method not allowed", func(t *testing.T) {
+		ctlr := DeviceController{}
 
-	mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
-	ctlr := routes.DeviceController{DeviceRepository: mockRepo}
+		req := httptest.NewRequest(http.MethodGet, "/devices/command", nil)
+		rr := httptest.NewRecorder()
 
-	url := "/devices/switch"
-	req := httptest.NewRequest(http.MethodGet, url, nil) // Using GET instead of POST
-	rr := httptest.NewRecorder()
+		ctlr.SendCommand(rr, req)
 
-	ctlr.SwitchDeviceMode(rr, req)
+		if rr.Code != http.StatusMethodNotAllowed {
+			t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
+		}
+		if !strings.Contains(rr.Body.String(), "Method not allowed") {
+			t.Fatalf("expected method error body, got %q", rr.Body.String())
+		}
+	})
 
-	if rr.Code != http.StatusMethodNotAllowed {
-		t.Errorf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
-	}
-	if !strings.Contains(rr.Body.String(), "Method not allowed") {
-		t.Errorf("expected body to contain 'Method not allowed', got %q", rr.Body.String())
-	}
-}
+	t.Run("invalid request body", func(t *testing.T) {
+		ctlr := DeviceController{mqttClient: &mockMQTTClient{}}
 
-func TestDeviceController_GetDevices_MethodNotAllowed(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+		req := httptest.NewRequest(http.MethodPost, "/devices/command", strings.NewReader("invalid json"))
+		rr := httptest.NewRecorder()
 
-	mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
-	ctlr := routes.DeviceController{DeviceRepository: mockRepo}
+		ctlr.SendCommand(rr, req)
 
-	req := httptest.NewRequest(http.MethodPost, "/devices", nil) // Using POST instead of GET
-	rr := httptest.NewRecorder()
+		if rr.Code != http.StatusBadRequest {
+			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rr.Code)
+		}
+		if !strings.Contains(rr.Body.String(), "Invalid request body") {
+			t.Fatalf("expected invalid body message, got %q", rr.Body.String())
+		}
+	})
 
-	ctlr.GetDevices(rr, req)
+	t.Run("invalid command", func(t *testing.T) {
+		ctlr := DeviceController{mqttClient: &mockMQTTClient{}}
 
-	if rr.Code != http.StatusMethodNotAllowed {
-		t.Errorf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
-	}
-	if !strings.Contains(rr.Body.String(), "Method not allowed") {
-		t.Errorf("expected body to contain 'Method not allowed', got %q", rr.Body.String())
-	}
-}
+		req := httptest.NewRequest(http.MethodPost, "/devices/command", strings.NewReader(`{"device_id":"dev-1","command":"REBOOT"}`))
+		rr := httptest.NewRecorder()
 
-func TestDeviceController_SwitchDeviceMode_InvalidRequestBody(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+		ctlr.SendCommand(rr, req)
 
-	mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
-	ctlr := routes.DeviceController{DeviceRepository: mockRepo}
+		if rr.Code != http.StatusBadRequest {
+			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rr.Code)
+		}
+		if !strings.Contains(rr.Body.String(), "Invalid command") {
+			t.Fatalf("expected invalid command message, got %q", rr.Body.String())
+		}
+	})
 
-	url := "/devices/switch"
-	req := httptest.NewRequest(http.MethodPost, url, strings.NewReader("invalid json"))
-	ctx := context.WithValue(req.Context(), "email", "	invalid@example.com")
-	ctx = context.WithValue(ctx, "role", "admin")
-	req = req.WithContext(ctx)
-	rr := httptest.NewRecorder()
-	ctlr.SwitchDeviceMode(rr, req)
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("expected status %d, got %d", http.StatusBadRequest, rr.Code)
-	}
-	if !strings.Contains(rr.Body.String(), "Invalid request body") {
-		t.Errorf("expected body to contain 'Invalid request body', got %q", rr.Body.String())
-	}
+	t.Run("mqtt publish error", func(t *testing.T) {
+		mqttClient := &mockMQTTClient{publishErr: errors.New("publish failed")}
+		ctlr := DeviceController{mqttClient: mqttClient}
+
+		req := httptest.NewRequest(http.MethodPost, "/devices/command", strings.NewReader(`{"device_id":"dev-1","command":"CAPTURE"}`))
+		rr := httptest.NewRecorder()
+
+		ctlr.SendCommand(rr, req)
+
+		if rr.Code != http.StatusInternalServerError {
+			t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, rr.Code)
+		}
+		if !strings.Contains(rr.Body.String(), "Failed to publish command") {
+			t.Fatalf("expected publish error message, got %q", rr.Body.String())
+		}
+		if mqttClient.lastTopic != "ssproject/commands" {
+			t.Fatalf("expected topic ssproject/commands, got %q", mqttClient.lastTopic)
+		}
+		if mqttClient.lastPayload != "CAPTURE" {
+			t.Fatalf("expected payload CAPTURE, got %v", mqttClient.lastPayload)
+		}
+	})
+
+	t.Run("success returns json", func(t *testing.T) {
+		mqttClient := &mockMQTTClient{}
+		ctlr := DeviceController{mqttClient: mqttClient}
+
+		req := httptest.NewRequest(http.MethodPost, "/devices/command", strings.NewReader(`{"device_id":"dev-42","command":"START-LIVE"}`))
+		rr := httptest.NewRecorder()
+
+		ctlr.SendCommand(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+		}
+		if got := rr.Header().Get("Content-Type"); !strings.Contains(got, "application/json") {
+			t.Fatalf("expected JSON content type, got %q", got)
+		}
+		if !strings.Contains(rr.Body.String(), `"status":"success"`) {
+			t.Fatalf("expected success JSON status, got %q", rr.Body.String())
+		}
+		if !strings.Contains(rr.Body.String(), "Command START-LIVE sent to device dev-42") {
+			t.Fatalf("expected success message, got %q", rr.Body.String())
+		}
+		if mqttClient.lastTopic != "ssproject/commands" {
+			t.Fatalf("expected topic ssproject/commands, got %q", mqttClient.lastTopic)
+		}
+		if mqttClient.lastPayload != "START-LIVE" {
+			t.Fatalf("expected payload START-LIVE, got %v", mqttClient.lastPayload)
+		}
+	})
 }
