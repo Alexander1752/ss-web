@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"go.uber.org/mock/gomock"
+	"go.mongodb.org/mongo-driver/mongo"
+	"golang.org/x/crypto/bcrypt"
 
 	"mqtt-streaming-server/domain"
 	mock_domain "mqtt-streaming-server/mocks"
@@ -81,6 +83,61 @@ func TestUserController_Register(t *testing.T) {
 	}
 }
 
+func TestUserController_Register_FindByEmailError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mock_domain.NewMockUserRepository(ctrl)
+	ctlr := routes.UserController{UserRepository: mockRepo}
+
+	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(`{"email":"test@example.com","password":"securepass"}`))
+	rr := httptest.NewRecorder()
+
+	mockRepo.EXPECT().FindByEmail(gomock.Any(), "test@example.com").Return(nil, errors.New("db failure"))
+
+	ctlr.Register(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "Failed to check existing user") {
+		t.Fatalf("expected find error message, got %q", rr.Body.String())
+	}
+}
+
+func TestUserController_Register_AllowsMongoNoDocumentsAndHashesPassword(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mock_domain.NewMockUserRepository(ctrl)
+	ctlr := routes.UserController{UserRepository: mockRepo}
+
+	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(`{"email":"new@example.com","password":"plain-pass"}`))
+	rr := httptest.NewRecorder()
+
+	mockRepo.EXPECT().FindByEmail(gomock.Any(), "new@example.com").Return(nil, mongo.ErrNoDocuments)
+	mockRepo.EXPECT().Save(gomock.Any(), "new@example.com", gomock.Any()).DoAndReturn(
+		func(_ context.Context, _ string, savedPassword string) error {
+			if savedPassword == "plain-pass" {
+				t.Fatalf("password should be hashed, plain text was saved")
+			}
+			if err := bcrypt.CompareHashAndPassword([]byte(savedPassword), []byte("plain-pass")); err != nil {
+				t.Fatalf("saved password is not a valid bcrypt hash for input password: %v", err)
+			}
+			return nil
+		},
+	)
+
+	ctlr.Register(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d", http.StatusCreated, rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "User registered successfully") {
+		t.Fatalf("expected success message, got %q", rr.Body.String())
+	}
+}
+
 func TestUserController_Login(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -143,6 +200,15 @@ func TestUserController_Login(t *testing.T) {
 
 			if rr.Code != tt.expectedStatus {
 				t.Errorf("expected status %d, got %d", tt.expectedStatus, rr.Code)
+			}
+
+			if tt.expectedStatus == http.StatusOK {
+				if got := rr.Header().Get("Content-Type"); !strings.Contains(got, "application/json") {
+					t.Errorf("expected JSON content type, got %q", got)
+				}
+				if !strings.Contains(rr.Body.String(), "placeholder-token-implement-jwt") {
+					t.Errorf("expected placeholder token in response, got %q", rr.Body.String())
+				}
 			}
 
 			if tt.expectedContains != "" && !strings.Contains(rr.Body.String(), tt.expectedContains) {

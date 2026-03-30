@@ -205,6 +205,12 @@ func TestDeviceController_SwitchDeviceMode(t *testing.T) {
 		if mqttClient.lastTopic != "setup/dev-1" {
 			t.Fatalf("expected topic setup/dev-1, got %q", mqttClient.lastTopic)
 		}
+		if mqttClient.lastQoS != 0 {
+			t.Fatalf("expected qos 0, got %d", mqttClient.lastQoS)
+		}
+		if mqttClient.lastRetained {
+			t.Fatalf("expected retained false, got true")
+		}
 		if mqttClient.lastPayload != "start LIVE" {
 			t.Fatalf("expected payload 'start LIVE', got %v", mqttClient.lastPayload)
 		}
@@ -227,6 +233,12 @@ func TestDeviceController_SwitchDeviceMode(t *testing.T) {
 		}
 		if mqttClient.lastTopic != "setup/dev-2" {
 			t.Fatalf("expected topic setup/dev-2, got %q", mqttClient.lastTopic)
+		}
+		if mqttClient.lastQoS != 0 {
+			t.Fatalf("expected qos 0, got %d", mqttClient.lastQoS)
+		}
+		if mqttClient.lastRetained {
+			t.Fatalf("expected retained false, got true")
 		}
 		if mqttClient.lastPayload != "start NORMAL" {
 			t.Fatalf("expected payload 'start NORMAL', got %v", mqttClient.lastPayload)
@@ -281,6 +293,9 @@ func TestDeviceController_SendCommand(t *testing.T) {
 		if !strings.Contains(rr.Body.String(), "Invalid command") {
 			t.Fatalf("expected invalid command message, got %q", rr.Body.String())
 		}
+		if ctlr.mqttClient.(*mockMQTTClient).publishCalled {
+			t.Fatalf("expected publish to not be called for invalid command")
+		}
 	})
 
 	t.Run("mqtt publish error", func(t *testing.T) {
@@ -301,37 +316,55 @@ func TestDeviceController_SendCommand(t *testing.T) {
 		if mqttClient.lastTopic != "ssproject/commands" {
 			t.Fatalf("expected topic ssproject/commands, got %q", mqttClient.lastTopic)
 		}
+		if mqttClient.lastQoS != 0 {
+			t.Fatalf("expected qos 0, got %d", mqttClient.lastQoS)
+		}
+		if mqttClient.lastRetained {
+			t.Fatalf("expected retained false, got true")
+		}
 		if mqttClient.lastPayload != "CAPTURE" {
 			t.Fatalf("expected payload CAPTURE, got %v", mqttClient.lastPayload)
 		}
 	})
 
-	t.Run("success returns json", func(t *testing.T) {
-		mqttClient := &mockMQTTClient{}
-		ctlr := DeviceController{mqttClient: mqttClient}
+	for _, cmd := range []string{"CAPTURE", "START-LIVE", "STOP-LIVE"} {
+		cmd := cmd
+		t.Run("success returns json for "+cmd, func(t *testing.T) {
+			mqttClient := &mockMQTTClient{}
+			ctlr := DeviceController{mqttClient: mqttClient}
 
-		req := httptest.NewRequest(http.MethodPost, "/devices/command", strings.NewReader(`{"device_id":"dev-42","command":"START-LIVE"}`))
-		rr := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPost, "/devices/command", strings.NewReader(`{"device_id":"dev-42","command":"`+cmd+`"}`))
+			rr := httptest.NewRecorder()
 
-		ctlr.SendCommand(rr, req)
+			ctlr.SendCommand(rr, req)
 
-		if rr.Code != http.StatusOK {
-			t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
-		}
-		if got := rr.Header().Get("Content-Type"); !strings.Contains(got, "application/json") {
-			t.Fatalf("expected JSON content type, got %q", got)
-		}
-		if !strings.Contains(rr.Body.String(), `"status":"success"`) {
-			t.Fatalf("expected success JSON status, got %q", rr.Body.String())
-		}
-		if !strings.Contains(rr.Body.String(), "Command START-LIVE sent to device dev-42") {
-			t.Fatalf("expected success message, got %q", rr.Body.String())
-		}
-		if mqttClient.lastTopic != "ssproject/commands" {
-			t.Fatalf("expected topic ssproject/commands, got %q", mqttClient.lastTopic)
-		}
-		if mqttClient.lastPayload != "START-LIVE" {
-			t.Fatalf("expected payload START-LIVE, got %v", mqttClient.lastPayload)
-		}
-	})
+			if rr.Code != http.StatusOK {
+				t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+			}
+			if got := rr.Header().Get("Content-Type"); !strings.Contains(got, "application/json") {
+				t.Fatalf("expected JSON content type, got %q", got)
+			}
+			if !strings.Contains(rr.Body.String(), `"status":"success"`) {
+				t.Fatalf("expected success JSON status, got %q", rr.Body.String())
+			}
+			if !strings.Contains(rr.Body.String(), "Command "+cmd+" sent to device dev-42") {
+				t.Fatalf("expected success message, got %q", rr.Body.String())
+			}
+			if !mqttClient.publishCalled {
+				t.Fatalf("expected publish to be called")
+			}
+			if mqttClient.lastTopic != "ssproject/commands" {
+				t.Fatalf("expected topic ssproject/commands, got %q", mqttClient.lastTopic)
+			}
+			if mqttClient.lastQoS != 0 {
+				t.Fatalf("expected qos 0, got %d", mqttClient.lastQoS)
+			}
+			if mqttClient.lastRetained {
+				t.Fatalf("expected retained false, got true")
+			}
+			if mqttClient.lastPayload != cmd {
+				t.Fatalf("expected payload %s, got %v", cmd, mqttClient.lastPayload)
+			}
+		})
+	}
 }
