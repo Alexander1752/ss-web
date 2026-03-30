@@ -22,7 +22,7 @@ fi
 
 echo "Stopping docker compose services..."
 cd "${ROOT_DIR}"
-docker compose down
+env "UID=$(id -u)" "GID=$(id -g)" docker compose down
 
 echo "All services stopped."
 

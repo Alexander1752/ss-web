@@ -7,8 +7,12 @@ CLIENT_DIR="${ROOT_DIR}/client"
 LOG_DIR="${ROOT_DIR}/.dev-runtime"
 PID_FILE="${LOG_DIR}/client.pid"
 LOG_FILE="${LOG_DIR}/client.log"
+UPLOAD_DIR="${ROOT_DIR}/uploads"
 
 mkdir -p "${LOG_DIR}"
+
+mkdir -p "${UPLOAD_DIR}"
+chmod 755 "${UPLOAD_DIR}"
 
 if [[ ! -f "${ROOT_DIR}/.env" ]]; then
   echo "Missing .env in ${ROOT_DIR}. Copy or create it before starting the stack." >&2
@@ -24,7 +28,7 @@ cd "${ROOT_DIR}"
 # Detect host IP for MQTT broker info
 export HOST_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
 echo "Detected HOST_IP: ${HOST_IP}"
-docker compose up -d
+env "UID=$(id -u)" "GID=$(id -g)" docker compose up -d
 
 if [[ -f "${PID_FILE}" ]]; then
   EXISTING_PID="$(cat "${PID_FILE}")"
