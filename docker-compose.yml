@@ -1,10 +1,12 @@
 services:
   # Go API Service
   go-api:
-    build: ./server
+    build:
+      context: ./server
+      dockerfile: Dockerfile
     user: "${UID}:${GID}"
     container_name: go-api
-    image: stefandarius/mqtt-ss-api:latest
+    image: lf4a/mqtt-ss-api:local
     env_file: .env
     environment:
       - MQTT_HOST_IP=${HOST_IP:-host.docker.internal}

@@ -28,7 +28,7 @@ cd "${ROOT_DIR}"
 # Detect host IP for MQTT broker info
 export HOST_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
 echo "Detected HOST_IP: ${HOST_IP}"
-env "UID=$(id -u)" "GID=$(id -g)" docker compose up -d
+env "UID=$(id -u)" "GID=$(id -g)" docker compose up -d --build
 
 if [[ -f "${PID_FILE}" ]]; then
   EXISTING_PID="$(cat "${PID_FILE}")"
