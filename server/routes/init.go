@@ -3,11 +3,13 @@ package routes
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/golang-jwt/jwt/v4"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -98,9 +100,6 @@ func withCORS(next http.Handler) http.Handler {
 	})
 }
 
-// TODO: Implement authentication - See docs/AUTH_IMPLEMENTATION.md
-// noAuth is a placeholder middleware that passes all requests through without authentication.
-// Replace this with withAuth once you implement JWT or Basic authentication.
 func noAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// No authentication - pass through with placeholder context values
@@ -109,11 +108,6 @@ func noAuth(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
-
-// TODO: Implement JWT authentication - See docs/AUTH_IMPLEMENTATION.md
-// Example implementation commented below:
-/*
-import "github.com/golang-jwt/jwt/v4"
 
 func withAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -158,5 +152,3 @@ func withAuth(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
-*/
-

@@ -26,10 +26,9 @@ func InitPhotoRoutes(db *mongo.Database, mux *http.ServeMux) {
 		PhotoRepository: repository.NewPhotoRepository(db),
 	}
 
-	// TODO: Implement authentication - See docs/AUTH_IMPLEMENTATION.md
-	mux.Handle("/photos", noAuth(http.HandlerFunc(photoController.GetPhotos)))
-	mux.Handle("/photos/all", noAuth(http.HandlerFunc(photoController.DeleteAllPhotos)))
-	mux.Handle("/photos/", noAuth(http.HandlerFunc(photoController.DeletePhoto)))
+	mux.Handle("/photos", withAuth(http.HandlerFunc(photoController.GetPhotos)))
+	mux.Handle("/photos/all", withAuth(http.HandlerFunc(photoController.DeleteAllPhotos)))
+	mux.Handle("/photos/", withAuth(http.HandlerFunc(photoController.DeletePhoto)))
 }
 
 func (ctlr PhotoController) GetPhotos(w http.ResponseWriter, r *http.Request) {
@@ -107,8 +106,6 @@ func (ctlr PhotoController) DeletePhoto(w http.ResponseWriter, r *http.Request) 
 
 	ctx := r.Context()
 
-
-
 	// Extract photo ID from URL path: /photos/{id}
 	path := strings.TrimPrefix(r.URL.Path, "/photos/")
 	if path == "" {
@@ -151,8 +148,6 @@ func (ctlr PhotoController) DeleteAllPhotos(w http.ResponseWriter, r *http.Reque
 	}
 
 	ctx := r.Context()
-
-
 
 	// Delete all photos from database
 	deletedCount, err := ctlr.PhotoRepository.DeleteAll(ctx)
