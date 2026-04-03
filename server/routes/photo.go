@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -91,7 +89,7 @@ func (ctlr PhotoController) GetPhotos(w http.ResponseWriter, r *http.Request) {
 
 	for _, photo := range photos {
 		keyName := fmt.Sprintf("photos/%d.%s", photo.Timestamp.Unix(), photo.ImageType)
-		photo.PresignedURL = utils.GetLocalURL(keyName)
+		photo.PresignedURL = utils.GetPresignedURL(keyName)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -130,10 +128,10 @@ func (ctlr PhotoController) DeletePhoto(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Delete the image file from local storage
-	fileName := fmt.Sprintf("uploads/photos/%d.%s", photo.Timestamp.Unix(), photo.ImageType)
-	if err := os.Remove(fileName); err != nil {
-		fmt.Printf("Warning: Could not delete file %s: %v\n", fileName, err)
+	// Delete the image object from MinIO
+	keyName := fmt.Sprintf("photos/%d.%s", photo.Timestamp.Unix(), photo.ImageType)
+	if err := utils.DeleteFromMinIO(keyName); err != nil {
+		fmt.Printf("Warning: Could not delete object %s: %v\n", keyName, err)
 		// Don't fail the request - the DB record is already deleted
 	}
 
@@ -157,13 +155,9 @@ func (ctlr PhotoController) DeleteAllPhotos(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Delete all image files from uploads/photos directory
-	photosDir := "uploads/photos"
-	files, err := filepath.Glob(filepath.Join(photosDir, "*"))
-	if err == nil {
-		for _, f := range files {
-			os.Remove(f)
-		}
+	// Delete all image objects from MinIO under photos/
+	if err := utils.DeletePrefixFromMinIO("photos/"); err != nil {
+		fmt.Printf("Warning: Could not delete all image objects: %v\n", err)
 	}
 
 	w.WriteHeader(http.StatusOK)

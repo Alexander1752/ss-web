@@ -19,11 +19,6 @@ func InitRoutes(db *mongo.Database, mqttClient mqtt.Client) http.Handler {
 	InitPhotoRoutes(db, mux)
 	InitDeviceRoutes(db, mqttClient, mux)
 
-	// Serve static files from ./uploads
-	// Ensure the directory exists or handle errors gracefully, but FileServer is robust enough.
-	fs := http.FileServer(http.Dir("uploads"))
-	mux.Handle("/uploads/", http.StripPrefix("/uploads/", fs))
-
 	// Broker info endpoint - returns the MQTT broker connection info
 	mux.HandleFunc("/broker-info", handleBrokerInfo)
 
