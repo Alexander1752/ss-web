@@ -17,15 +17,15 @@ ss-web/
 
 ## Tehnologii Folosite
 
-| Component | Tehnologie |
-|-----------|------------|
-| Frontend | React + TypeScript + Vite + TailwindCSS |
-| Backend | Go (Golang) |
-| Bază de date | MongoDB |
-| Broker MQTT | Eclipse Mosquitto |
-| Containerizare | Docker Compose |
-| Autentificare | JWT - TODO: de implementat (vezi `docs/AUTH_IMPLEMENTATION.md`) |
-| Securitate | mTLS (Mutual TLS) - TODO: de implementat |
+| Component      | Tehnologie                                                        |
+| -------------- | ----------------------------------------------------------------- |
+| Frontend       | React + TypeScript + Vite + TailwindCSS                           |
+| Backend        | Go (Golang)                                                       |
+| Bază de date  | MongoDB                                                           |
+| Broker MQTT    | Eclipse Mosquitto                                                 |
+| Containerizare | Docker Compose                                                    |
+| Autentificare  | JWT - TODO: de implementat (vezi `docs/AUTH_IMPLEMENTATION.md`) |
+| Securitate     | mTLS (Mutual TLS) - TODO: de implementat                          |
 
 ---
 
@@ -49,8 +49,8 @@ cd ss-web
 
 ### Pasul 2: Configurarea Variabilelor de Mediu ---optional momentan
 
-
 Verifică/creează fișierul `.env` în directorul rădăcină:
+
 ```bash
 # .env
 UID=501                               # User ID local (obține cu `id -u`)
@@ -74,6 +74,7 @@ MQTT_HOST_IP=192.168.1.95             # IP-ul host-ului pentru MQTT
 ```
 
 Acest script va:
+
 1. Instala dependențele client (yarn install)
 2. Porni containerele Docker (API, MongoDB, MQTT Broker)
 3. Porni serverul de development Vite
@@ -94,13 +95,13 @@ yarn dev:poll
 
 După pornire, aplicația va fi disponibilă la:
 
-| Serviciu | URL/Port |
-|----------|----------|
-| Frontend (Vite) | http://localhost:5173 |
-| Backend API | http://localhost:8080 |
-| MongoDB | localhost:27019 |
-| MQTT Broker (mTLS) | localhost:8883 |
-| MQTT Broker (plain) | localhost:1883 |
+| Serviciu            | URL/Port              |
+| ------------------- | --------------------- |
+| Frontend (Vite)     | http://localhost:5173 |
+| Backend API         | http://localhost:8080 |
+| MongoDB             | localhost:27019       |
+| MQTT Broker (mTLS)  | localhost:8883        |
+| MQTT Broker (plain) | localhost:1883        |
 
 ---
 
@@ -146,13 +147,13 @@ docker compose down
 
 ## Scripturi Utile
 
-| Script | Descriere |
-|--------|-----------|
-| `./start.sh` | Pornește întregul stack |
-| `./scripts/dev-start.sh` | Script complet de pornire |
-| `./scripts/dev-stop.sh` | Oprește toate serviciile |
-| `./scripts/send_image.py` | Trimite imagini test prin MQTT |
-| `./scripts/seed_data.py` | Populează baza de date cu date test |
+| Script                      | Descriere                            |
+| --------------------------- | ------------------------------------ |
+| `./start.sh`              | Pornește întregul stack            |
+| `./scripts/dev-start.sh`  | Script complet de pornire            |
+| `./scripts/dev-stop.sh`   | Oprește toate serviciile            |
+| `./scripts/send_image.py` | Trimite imagini test prin MQTT       |
+| `./scripts/seed_data.py`  | Populează baza de date cu date test |
 
 ---
 
@@ -234,12 +235,14 @@ python3 scripts/send_image.py /cale/catre/imagine.jpg
 
 **Configurare Device ID:**
 În fișierul `send_image.py`, poți modifica:
+
 ```python
 DEVICE_ID = "python-sender-1"  # ID unic pentru dispozitiv
 DEVICE_NAME = "Python Test Device"  # Nume vizibil în UI
 ```
 
 **Topic-uri MQTT utilizate:**
+
 - `register/{DEVICE_ID}` - pentru înregistrarea dispozitivului
 - `ssproject/images/{DEVICE_ID}` - pentru trimiterea imaginilor
 
@@ -253,10 +256,10 @@ Pagina de **Statistics** se află în meniul aplicației și afișează grafice 
 
 ### Grafice disponibile:
 
-| Grafic | Ce arată |
-|--------|----------|
+| Grafic                              | Ce arată                                                                                 |
+| ----------------------------------- | ----------------------------------------------------------------------------------------- |
 | **Control Type Distribution** | Tipurile de controale medicale: Angajare, Periodic, Adaptare, Reluare, Supraveghere, Alte |
-| **Medical Opinion Results** | Rezultatele avizelor medicale: APT, APT Condiționat, Inapt Temporar, Inapt |
+| **Medical Opinion Results**   | Rezultatele avizelor medicale: APT, APT Condiționat, Inapt Temporar, Inapt               |
 
 ### Carduri sumar:
 
@@ -291,6 +294,7 @@ MQTT_HOST_IP=192.168.1.95  # ← Acest IP se folosește în aplicația mobilă
 **2. Aflat automat la pornirea serverului:**
 
 Când rulezi `./start.sh`, scriptul afișează:
+
 ```
 Detected HOST_IP: 192.168.1.95
 ```
@@ -308,46 +312,48 @@ ipconfig getifaddr en1
 
 În aplicația mobilă Android/iOS, setează:
 
-| Parametru | Valoare |
-|-----------|---------|
-| **MQTT Host** | IP-ul din `.env` (ex: `192.168.1.95`) |
-| **MQTT Port (mTLS)** | `8883` |
-| **MQTT Port (plain)** | `1883` |
-| **Topic pentru imagini** | `ssproject/images/{DEVICE_ID}` |
-| **Topic pentru înregistrare** | `register/{DEVICE_ID}` |
+| Parametru                            | Valoare                                   |
+| ------------------------------------ | ----------------------------------------- |
+| **MQTT Host**                  | IP-ul din `.env` (ex: `192.168.1.95`) |
+| **MQTT Port (mTLS)**           | `8883`                                  |
+| **MQTT Port (plain)**          | `1883`                                  |
+| **Topic pentru imagini**       | `ssproject/images/{DEVICE_ID}`          |
+| **Topic pentru înregistrare** | `register/{DEVICE_ID}`                  |
 
 ### Certificate necesare pentru mTLS:
 
 > **Notă:** Securitatea mTLS nu este implementată implicit. Pentru a activa conexiunea securizată:
+>
 > 1. Urmați ghidul din [`docs/SECURITY_IMPLEMENTATION.md`](docs/SECURITY_IMPLEMENTATION.md)
 > 2. Generați certificatele necesare în directorul `secrets/`
 
 Pentru conexiunea securizată, aplicația mobilă are nevoie de:
+
 - `ca.crt` - Certificate Authority
 - Certificat client generat de aceeași CA
 
 ---
-
 
 ### Gestionarea și Ștergerea Imaginilor
 
 Există două modalități de a șterge imaginile din aplicație:
 
 **1. Ștergere Individuală:**
+
 - Fiecare card de imagine are un buton de ștergere (🗑️) în colțul din dreapta-sus.
 - Utilizați această opțiune pentru a elimina imagini specifice (ex: cele capturate greșit).
 
 **2. Ștergere Totală (Resetare):**
+
 - Butonul **Delete All** (roșu) șterge **toate** imaginile din baza de date.
 - Această funcție este utilă pentru a curăța baza de date înainte de o nouă sesiune de testare sau demonstrativă.
-
-
 
 ---
 
 ## Ce să verifici în aplicație
 
 ### 1. Pagina Photos
+
 - Verifică dacă imaginile încărcate apar corect
 - Verifică textul extras automat (OCR)
 - Testează funcția de căutare
@@ -355,10 +361,12 @@ Există două modalități de a șterge imaginile din aplicație:
 - Testează ștergerea pozelor (buton trash pe fiecare poză)
 
 ### 2. Pagina Devices
+
 - Verifică dacă dispozitivele se înregistrează
 - Testează schimbarea modului Normal/Live
 
 ### 3. Pagina Statistics
+
 - Verifică graficele cu distribuția tipurilor de control
 - Verifică graficele cu rezultatele avizelor medicale
 
@@ -379,7 +387,6 @@ Există două modalități de a șterge imaginile din aplicație:
 
 **Livrabil:** Screenshot cu imaginea încărcată vizibilă în pagina Photos
 
-
 ### Task 2: Explorare și analiză statistici (opțional - pentru timp suplimentar)
 
 1. Încarcă mai multe imagini folosind `send_image.py` (repetă de mai multe ori):
@@ -399,21 +406,19 @@ Există două modalități de a șterge imaginile din aplicație:
 ## Suport
 
 Pentru probleme sau întrebări, consultați:
+
 - Documentația MQTT: https://mqtt.org/
 - Documentația proiectului în `client/README.md`
-
-
-
 
 ## Controale Camera ESP (în pagina Photos)
 
 În partea de sus a paginii Photos există controale pentru camera ESP (pentru Lab-ul de ESP):
 
-| Buton | Funcție |
-|-------|---------|
+| Buton                        | Funcție                                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------- |
 | **Capture** (albastru) | Trimite o comandă către cameră să facă o singură poză și să o trimită |
-| **Start Live** (verde) | Pornește modul live - camera trimite poze continuu până primește Stop |
-| **Stop Live** (roșu) | Oprește modul live - camera încetează să mai trimită poze |
+| **Start Live** (verde) | Pornește modul live - camera trimite poze continuu până primește Stop       |
+| **Stop Live** (roșu)  | Oprește modul live - camera încetează să mai trimită poze                  |
 
 ### Funcționarea modului Live:
 
@@ -423,10 +428,10 @@ Pentru probleme sau întrebări, consultați:
 4. Camera primește comanda și se oprește din trimitere
 
 ## UTesting
+
 În procesul de rulare a testelor backend au apărut două probleme de build, ambele rezolvate:
 
 Mock-uri nealiniate cu interfețele curente
-Eroarea din tests pentru PhotoRepository a fost cauzată de un mock neactualizat (lipseau metodele noi din interfață).
 Soluție: actualizarea mock-ului pentru a include toate metodele interfeței (GetByID, Delete, DeleteAll), astfel încât pachetul routes să compileze corect la testare.
 
 Dependențe native lipsă pentru OCR (gosseract)
