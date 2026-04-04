@@ -80,8 +80,8 @@ func main() {
 	handler := routes.InitRoutes(db, client)
 
 	go func() {
-		fmt.Println("Starting HTTP server on port 8080...")
-		if err := http.ListenAndServe(":8080", handler); err != nil {
+		fmt.Println("Starting HTTPS server on port 5000...")
+		if err := http.ListenAndServeTLS(":5000", "cert.pem", "key.pem", handler); err != nil {
 			panic(err)
 		}
 	}()
