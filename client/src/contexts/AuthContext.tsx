@@ -1,74 +1,79 @@
-// TODO: Implement authentication - See docs/AUTH_IMPLEMENTATION.md
-// This file currently bypasses authentication. To implement real auth:
-// 1. Remove the auto-login in useEffect
-// 2. Validate JWT tokens from the backend
-// 3. Store and use real tokens for API requests
-
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
+import Keycloak from 'keycloak-js';
 
 interface AuthContextType {
   isLoggedIn: boolean;
   token: string | null;
   loading: boolean;
   isAdmin: boolean;
-  login: (token: string) => void;
+  login: () => void;
   logout: () => void;
+  register: () => void;
 }
-
-
 
 const AuthContext = createContext<AuthContextType>({
   isLoggedIn: false,
   token: null,
   loading: true,
-  isAdmin: true,
-  login: () => { },
-  logout: () => { },
+  isAdmin: false,
+  login: () => {},
+  logout: () => {},
+  register: () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
 
+const keycloak = new Keycloak({
+  url: import.meta.env.VITE_KEYCLOAK_URL ?? 'http://localhost:8081',
+  realm: import.meta.env.VITE_KEYCLOAK_REALM ?? 'ss-project',
+  clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID ?? 'ss-web',
+});
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const initialized = useRef(false);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    if (storedToken) {
-      setToken(storedToken);
-      setIsLoggedIn(true);
-      setIsAdmin(true);
-    }
-    setLoading(false);
+    if (initialized.current) return;
+    initialized.current = true;
+
+    keycloak
+      .init({
+        onLoad: 'check-sso',
+        silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
+        pkceMethod: 'S256',
+      })
+      .then((authenticated) => {
+        setIsLoggedIn(authenticated);
+        if (authenticated && keycloak.token) {
+          setToken(keycloak.token);
+          const roles = keycloak.realmAccess?.roles ?? [];
+          setIsAdmin(roles.includes('admin'));
+        }
+      })
+      .finally(() => setLoading(false));
+
+    keycloak.onTokenExpired = () => {
+      keycloak.updateToken(30).then((refreshed) => {
+        if (refreshed && keycloak.token) {
+          setToken(keycloak.token);
+        }
+      });
+    };
   }, []);
 
-  const login = (newToken: string) => {
-    localStorage.setItem('token', newToken);
-    setToken(newToken);
-    setIsLoggedIn(true);
+  const login = () => keycloak.login();
+  const logout = () => keycloak.logout({ redirectUri: window.location.origin });
+  const register = () => keycloak.register({ redirectUri: window.location.origin });
 
-    setIsAdmin(true);
-  };
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setIsLoggedIn(false);
-    setIsAdmin(false);
-  };
-
-  const value = {
-    token,
-    isLoggedIn,
-    loading,
-    isAdmin,
-    login,
-    logout,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ isLoggedIn, token, loading, isAdmin, login, logout, register }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-export default AuthContext; 
+export default AuthContext;

@@ -1,4 +1,18 @@
 services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2
+    container_name: keycloak
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+    command: start-dev --import-realm
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import
+    networks:
+      - backend
+
   # Go API Service
   go-api:
     build:
@@ -15,6 +29,7 @@ services:
     depends_on:
       - mongo-db
       - broker
+      - keycloak
     ports:
       - 8080:8080
     networks:

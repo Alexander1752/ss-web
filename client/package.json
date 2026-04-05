@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.7",
+    "keycloak-js": "^26.0.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-is": "^19.2.3",
