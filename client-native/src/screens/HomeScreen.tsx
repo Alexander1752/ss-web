@@ -11,8 +11,8 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>SS APP</Text>
-      <Text style={styles.subtitle}>First mobile refactor baseline</Text>
+      <Text style={styles.title}>SS App</Text>
+      <Text style={styles.subtitle}>Refactoring WIP</Text>
 
       {!isLoggedIn ? (
         <View style={styles.actions}>

@@ -7,6 +7,7 @@ Acest proiect este o aplicație web care primește imagini de la dispozitive mob
 ```
 ss-web/
 ├── client/          # Frontend React + TypeScript + Vite
+├── client-native/   # Frontend React Native (Expo) - refactor in progress
 ├── server/          # Backend Go API
 ├── broker/          # Configurare MQTT Mosquitto
 ├── scripts/         # Scripturi utilitare
@@ -19,7 +20,8 @@ ss-web/
 
 | Component | Tehnologie |
 |-----------|------------|
-| Frontend | React + TypeScript + Vite + TailwindCSS |
+| Frontend Web | React + TypeScript + Vite + TailwindCSS |
+| Frontend Mobile | React Native + Expo + TypeScript |
 | Backend | Go (Golang) |
 | Bază de date | MongoDB |
 | Broker MQTT | Eclipse Mosquitto |
@@ -101,6 +103,19 @@ După pornire, aplicația va fi disponibilă la:
 | MongoDB | localhost:27019 |
 | MQTT Broker (mTLS) | localhost:8883 |
 | MQTT Broker (plain) | localhost:1883 |
+
+### Frontend Mobile (React Native)
+
+Aplicatia mobila se afla in `client-native` si reprezinta inceputul migrarii frontend-ului.
+
+```bash
+cd client-native
+npm install
+cp .env.example .env
+npm run start
+```
+
+Seteaza `EXPO_PUBLIC_API_BASE_URL` in `.env` (in special daca rulezi pe telefon fizic).
 
 ---
 
