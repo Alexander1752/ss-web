@@ -28,8 +28,8 @@ const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <nav className="fixed top-0 left-0 right-0 bg-sky-50 shadow-sm z-50">
-      <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-        <div className="flex space-x-2">
+      <div className="px-4 py-3 flex items-center justify-between">
+        <div className="flex-1 flex space-x-2">
           {leftButtons.map((button, index) => (
             <Button 
               key={index}
@@ -48,7 +48,7 @@ const Navbar: React.FC<NavbarProps> = ({
           {title}
         </h1>
         
-        <div className="flex space-x-2">
+        <div className="flex-1 flex space-x-2 justify-end">
           {rightButtons.map((button, index) => (
             <Button 
               key={index}

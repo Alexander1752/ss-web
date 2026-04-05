@@ -1,4 +1,4 @@
-# Security of Systems - First Force
+# Security of Systems - First Force / LF4A - Delta Force
 
 A front-end application for a university project that serves as a security system interface. The application captures photos from connected devices, extracts text using OCR, and enables searching based on the extracted text content.
 

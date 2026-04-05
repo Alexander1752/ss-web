@@ -59,7 +59,7 @@ const Layout = () => {
   return (
     <>
       <Navbar
-        title="Security of Systems - First Force"
+        title="LF4A - Delta Force"
         leftButtons={leftButtons}
         rightButtons={rightButtons}
       />
