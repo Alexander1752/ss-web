@@ -17,8 +17,6 @@ services:
       - broker
     ports:
       - 8080:8080
-    volumes:
-      - ./uploads:/app/uploads
     networks:
       - backend
     # TODO: Implement mTLS security - See docs/SECURITY_IMPLEMENTATION.md
@@ -56,9 +54,23 @@ services:
       - mongo-data:/data/db
     networks:
       - backend
+  
+  minio:
+    container_name: minio
+    image: quay.io/minio/minio:latest
+    env_file: .env
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - backend
 
 volumes:
   mongo-data:
+  minio-data:
 
 networks:
   backend:

@@ -84,7 +84,7 @@ func (b BrokerHandler) HandlePhoto(_ mqtt.Client, msg mqtt.Message) {
 		fmt.Printf("Failed to extract text from image: %v\n", err)
 		text = "OCR failed"
 	}
-	
+
 	// Try to extract structured medical data
 	var medicalData *utils.MedicalData
 	if utils.IsMedicalCertificate(text) {
@@ -93,10 +93,10 @@ func (b BrokerHandler) HandlePhoto(_ mqtt.Client, msg mqtt.Message) {
 			fmt.Printf("Extracted medical data: %+v\n", medicalData)
 		}
 	}
-	
+
 	// UTC timestamp
 	timestamp := time.Now().UTC()
-	
+
 	// Create photo with flattened medical data
 	photo := &domain.Photo{
 		ImageType: imageType,
@@ -104,7 +104,7 @@ func (b BrokerHandler) HandlePhoto(_ mqtt.Client, msg mqtt.Message) {
 		DeviceID:  deviceID,
 		Text:      text,
 	}
-	
+
 	// Copy medical data fields directly to photo (flattened)
 	if medicalData != nil {
 		photo.UnitateMedicala = medicalData.UnitateMedicala
@@ -137,19 +137,19 @@ func (b BrokerHandler) HandlePhoto(_ mqtt.Client, msg mqtt.Message) {
 		photo.Data = medicalData.Data
 		photo.DataUrmExaminari = medicalData.DataUrmExaminari
 	}
-	
+
 	err = b.photoRepository.Save(ctx, photo)
 	if err != nil {
 		fmt.Printf("Failed to insert photo into MongoDB: %v\n", err)
 		return
 	}
-	// Save photo locally
+	// Save photo object to MinIO
 	keyName := fmt.Sprintf("photos/%d.%s", timestamp.Unix(), imageType)
-	if err := utils.SaveToLocal(body, keyName); err != nil {
-		fmt.Printf("Failed to save photo locally: %v\n", err)
+	if err := utils.SaveToMinIO(body, keyName); err != nil {
+		fmt.Printf("Failed to save photo to MinIO: %v\n", err)
 		return
 	}
-	fmt.Printf("Photo saved locally with key: %s\n", keyName)
+	fmt.Printf("Photo saved to MinIO with key: %s\n", keyName)
 }
 
 func (b BrokerHandler) RegisterDevice(_ mqtt.Client, msg mqtt.Message) {
@@ -229,12 +229,12 @@ func (b BrokerHandler) DisconnectDevice(_ mqtt.Client, msg mqtt.Message) {
 	fmt.Println("Received message on topic:", msg.Topic())
 	message := string(msg.Payload())
 	fmt.Printf("Received device disconnection: %s\n", message)
-	
+
 	if message != "Device Disconnected" {
 		fmt.Printf("Invalid disconnection message: %s\n", message)
 		return
 	}
-	
+
 	device, err := b.deviceRepository.GetByID(ctx, deviceID)
 	if err != nil {
 		// handle error
