@@ -3,7 +3,7 @@ module mqtt-streaming-server
 go 1.25
 
 require (
-	github.com/eclipse/paho.mqtt.golang v1.5.0
+	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/minio/minio-go/v7 v7.0.100
 	github.com/otiai10/gosseract/v2 v2.4.1
