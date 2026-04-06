@@ -11,6 +11,7 @@ services:
     volumes:
       - ./keycloak:/opt/keycloak/data/import
     networks:
+      - keycloak
       - backend
 
   # Go API Service
@@ -88,6 +89,7 @@ volumes:
   minio-data:
 
 networks:
+  keycloak:
   backend:
 
 # TODO: Implement mTLS security - See docs/SECURITY_IMPLEMENTATION.md

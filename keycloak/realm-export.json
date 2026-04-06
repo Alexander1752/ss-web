@@ -25,11 +25,12 @@
       "redirectUris": [
         "http://localhost/*",
         "http://localhost:5173/*",
-        "http://localhost:5174/*"
+        "http://localhost:5174/*",
+        "https://lf4.com/*"
       ],
       "webOrigins": ["+"],
       "attributes": {
-        "post.logout.redirect.uris": "http://localhost/*##http://localhost:5173/*##http://localhost:5174/*",
+        "post.logout.redirect.uris": "http://localhost/*##http://localhost:5173/*##http://localhost:5174/*##https://lf4.com/*",
         "pkce.code.challenge.method": "S256"
       }
     }
