@@ -1,5 +1,7 @@
 # Proiect ss-web - echipa LF4A
 
+![CI](https://github.com/Alexander1752/ss-web/actions/workflows/ci.yml/badge.svg)
+
 Acest proiect este o aplicație web care primește imagini de la dispozitive mobile prin MQTT, le procesează cu OCR și permite căutarea pe baza textului extras.
 
 ## Arhitectura Proiectului
