@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+ 
+      # Go backend
+      - name: Install system dependencies (tesseract + leptonica)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libtesseract-dev libleptonica-dev tesseract-ocr
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Go build
+        working-directory: server
+        run: go build ./...
+
+      - name: Go test
+        working-directory: server
+        run: go test ./... -v -coverprofile=coverage.out 2>&1 | tee test-results.txt
+
+      - name: Upload Go test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-test-results
+          path: server/test-results.txt
+
+      - name: Upload Go coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-coverage
+          path: server/coverage.out
+ 
+      # React/Vite frontend
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "yarn"
+          cache-dependency-path: client/yarn.lock
+
+      - name: Install client dependencies
+        working-directory: client
+        run: yarn install --frozen-lockfile
+
+      - name: Client lint
+        working-directory: client
+        run: yarn lint
+
+      - name: Client build
+        working-directory: client
+        run: yarn build
+ 
+      # Docker build
+      - name: Docker build API image
+        working-directory: server
+        run: docker build -t ss-web-api:test .
