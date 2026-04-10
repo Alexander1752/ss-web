@@ -59,7 +59,7 @@ jobs:
       - name: Install client dependencies
         working-directory: client
         run: |
-          rm -rf node_modules
+          rm -rf node_modules yarn.lock
           yarn install
 
       - name: Client lint
