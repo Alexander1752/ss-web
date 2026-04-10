@@ -58,17 +58,15 @@ jobs:
 
       - name: Install client dependencies
         working-directory: client
-        run: |
-          rm -rf node_modules yarn.lock
-          yarn install
+        run: npm install
 
       - name: Client lint
         working-directory: client
-        run: yarn lint
+        run: npm run lint
 
       - name: Client build
         working-directory: client
-        run: yarn build
+        run: npm run build
  
       # Docker build
       - name: Docker build API image
