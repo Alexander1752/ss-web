@@ -11,7 +11,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 const Layout = () => {
   const navigate = useNavigate();
-  const { isLoggedIn, logout } = useAuth();
+  const { isLoggedIn, logout, login } = useAuth();
 
   // Left-side buttons (only shown when logged in)
   const leftButtons = isLoggedIn
@@ -40,17 +40,14 @@ const Layout = () => {
       {
         text: 'Logout',
         variant: 'outline' as const,
-        onClick: () => {
-          logout();
-          navigate('/');
-        }
+        onClick: () => logout()
       }
     ]
     : [
       {
         text: 'Login',
         variant: 'outline' as const,
-        onClick: () => navigate('/login')
+        onClick: () => login()
       },
       {
         text: 'Register',
@@ -62,7 +59,7 @@ const Layout = () => {
   return (
     <>
       <Navbar
-        title="Security of Systems - First Force"
+        title="LF4A - Delta Force"
         leftButtons={leftButtons}
         rightButtons={rightButtons}
       />

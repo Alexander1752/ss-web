@@ -34,6 +34,14 @@ func (ctlr DeviceController) SwitchDeviceMode(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	ctx := r.Context()
+
+	role, ok := ctx.Value("role").(string)
+	if !ok || role != "admin" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	var device struct {
 		ID   string `json:"id"`
 		Mode string `json:"mode"`
@@ -59,6 +67,12 @@ func (ctlr DeviceController) GetDevices(w http.ResponseWriter, r *http.Request) 
 	}
 
 	ctx := r.Context()
+
+	role, ok := ctx.Value("role").(string)
+	if !ok || role != "admin" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	// Fetch devices from the database
 	devices, err := ctlr.DeviceRepository.GetAllDevices(ctx)

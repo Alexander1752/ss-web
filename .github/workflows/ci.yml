@@ -55,20 +55,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "yarn"
-          cache-dependency-path: client/yarn.lock
 
       - name: Install client dependencies
         working-directory: client
-        run: yarn install --frozen-lockfile
+        run: npm install
 
       - name: Client lint
         working-directory: client
-        run: yarn lint
+        run: npm run lint
 
       - name: Client build
         working-directory: client
-        run: yarn build
+        run: npm run build
  
       # Docker build
       - name: Docker build API image

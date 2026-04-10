@@ -7,9 +7,13 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
+	"sync"
+	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/golang-jwt/jwt/v4"
+	keyfunc "github.com/MicahParks/keyfunc"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -104,44 +108,69 @@ func noAuth(next http.Handler) http.Handler {
 	})
 }
 
+var (
+	jwksOnce   sync.Once
+	globalJWKS *keyfunc.JWKS
+)
+
 func withAuth(next http.Handler) http.Handler {
+	jwksOnce.Do(func() {
+		keycloakURL := os.Getenv("KEYCLOAK_URL")
+		if keycloakURL == "" {
+			keycloakURL = "http://keycloak:8080"
+		}
+		realm := os.Getenv("KEYCLOAK_REALM")
+		if realm == "" {
+			realm = "ss-project"
+		}
+		jwksURL := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/certs", keycloakURL, realm)
+		var err error
+		globalJWKS, err = keyfunc.Get(jwksURL, keyfunc.Options{
+			RefreshInterval: time.Hour,
+			RefreshTimeout:  5 * time.Minute,
+		})
+		if err != nil {
+			panic(fmt.Sprintf("failed to initialize JWKS from %s: %v", jwksURL, err))
+		}
+	})
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Parse the JWT token from the Authorization header
 		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
 			http.Error(w, "Authorization header missing", http.StatusUnauthorized)
 			return
 		}
 
-		tokenString := authHeader[len("Bearer "):] // Remove "Bearer " prefix
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-			}
-			return []byte(os.Getenv("JWT_SECRET")), nil
-		})
+		tokenString := authHeader[len("Bearer "):]
+		token, err := jwt.Parse(tokenString, globalJWKS.Keyfunc)
 		if err != nil || !token.Valid {
 			http.Error(w, "Invalid token", http.StatusUnauthorized)
 			return
 		}
 
-		// Extract email from token claims
 		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok || !token.Valid {
-			http.Error(w, "Invalid token claims", http.StatusUnauthorized)
-			return
-		}
-		email, ok := claims["email"].(string)
 		if !ok {
 			http.Error(w, "Invalid token claims", http.StatusUnauthorized)
 			return
 		}
-		role, ok := claims["role"].(string)
-		if !ok {
-			http.Error(w, "Invalid token claims", http.StatusUnauthorized)
-			return
+
+		email, _ := claims["email"].(string)
+		if email == "" {
+			email, _ = claims["preferred_username"].(string)
 		}
-		// Store the email in the request context
+
+		role := "user"
+		if realmAccess, ok := claims["realm_access"].(map[string]interface{}); ok {
+			if roles, ok := realmAccess["roles"].([]interface{}); ok {
+				for _, r := range roles {
+					if r == "admin" {
+						role = "admin"
+						break
+					}
+				}
+			}
+		}
+
 		ctx := context.WithValue(r.Context(), "email", email)
 		ctx = context.WithValue(ctx, "role", role)
 		next.ServeHTTP(w, r.WithContext(ctx))
