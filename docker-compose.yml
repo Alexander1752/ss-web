@@ -1,4 +1,24 @@
 services:
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - go-api
+    cap_add:
+      - NET_BIND_SERVICE
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./secrets/ca.pem:/etc/ssl/certs/ca.pem
+      - ./secrets/web.crt:/etc/ssl/certs/crt.pem
+      - ./secrets/web.key:/etc/ssl/certs/key.pem
+    networks:
+      - backend
+      - keycloak
+
   keycloak:
     image: quay.io/keycloak/keycloak:26.2
     container_name: keycloak
@@ -7,7 +27,7 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
     command: start-dev --import-realm
     ports:
-      - "8081:8080"
+      - 8081:8080
     volumes:
       - ./keycloak:/opt/keycloak/data/import
     networks:
@@ -20,26 +40,29 @@ services:
       context: ./server
       dockerfile: Dockerfile
     user: "${UID}:${GID}"
+    restart: always
     container_name: go-api
     image: lf4a/mqtt-ss-api:local
-    env_file: .env
-    environment:
-      - MQTT_HOST_IP=${HOST_IP:-host.docker.internal}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    env_file: ./server/.env
     depends_on:
       - mongo-db
       - broker
       - keycloak
     ports:
-      - 8080:8080
+      - 5000:5000
     networks:
-      - backend
-    # TODO: Implement mTLS security - See docs/SECURITY_IMPLEMENTATION.md
-    # secrets:
-    #   - ca.crt
-    #   - web.crt
-    #   - web.key
+      backend:
+        aliases:
+          - api.lf4a.com
+      db:
+      minio:
+      broker:
+    volumes:
+      - ./secrets/ca.pem:/certs/ca.crt
+      - ./secrets/server.crt:/certs/server.crt
+      - ./secrets/server.key:/certs/server.key
+      - ./secrets/client.crt:/certs/client.crt
+      - ./secrets/client.key:/certs/client.key
 
   broker:
     user: "${UID}:${GID}"
@@ -47,42 +70,68 @@ services:
     container_name: broker
     hostname: broker
     ports:
-      # - "8883:8883"  # TODO: Uncomment for mTLS
-      - "1883:1883"
+      - 8883:8883
     volumes:
       - ./broker/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./secrets/ca.pem:/certs/ca.crt
+      - ./secrets/broker.crt:/certs/server.crt
+      - ./secrets/broker.key:/certs/server.key
     networks:
-      - backend
-    # TODO: Implement mTLS security - See docs/SECURITY_IMPLEMENTATION.md
-    # secrets:
-    #   - ca.crt
-    #   - server.crt
-    #   - server.key
+      - broker
 
   mongo-db:
     container_name: mongo-db
+    restart: always
     image: mongo:latest
-    env_file: .env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-password}
     command: ["--auth"]
-    ports:
-      - "27019:27017"
     volumes:
       - mongo-data:/data/db
     networks:
-      - backend
+      - db
+  
+  mongo-express:
+    container_name: mongo-express
+    restart: always
+    image: mongo-express:latest
+    environment:
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_EXPRESS_USER:-admin}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_PASSWORD:-password}
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_INITDB_ROOT_USERNAME:-root}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-password}
+      ME_CONFIG_MONGODB_SERVER: "mongo-db"
+      ME_CONFIG_SITE_SSL_ENABLED: "true"
+      ME_CONFIG_SITE_SSL_CRT_PATH: "/certs/express.crt"
+      ME_CONFIG_SITE_SSL_KEY_PATH: "/certs/express.key"
+    ports:
+      - 8082:8081
+    depends_on:
+      - mongo-db
+    networks:
+      - db
+    volumes:
+      - ./secrets/express.crt:/certs/express.crt
+      - ./secrets/express.key:/certs/express.key
   
   minio:
     container_name: minio
+    restart: always
     image: quay.io/minio/minio:latest
-    env_file: .env
-    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    command: server /data --certs-dir /certs --console-address ":9001"
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - 9001:9001
     volumes:
       - minio-data:/data
+      - ./secrets/ca.pem:/certs/ca.crt
+      - ./secrets/minio.crt:/certs/public.crt
+      - ./secrets/minio.key:/certs/private.key
     networks:
-      - backend
+      - minio
 
 volumes:
   mongo-data:
@@ -91,16 +140,6 @@ volumes:
 networks:
   keycloak:
   backend:
-
-# TODO: Implement mTLS security - See docs/SECURITY_IMPLEMENTATION.md
-# secrets:
-#   ca.crt:
-#     file: ./secrets/ca.crt
-#   web.crt:
-#     file: ./secrets/web.crt
-#   web.key:
-#     file: ./secrets/web.key
-#   server.crt:
-#     file: ./secrets/server.crt
-#   server.key:
-#     file: ./secrets/server.key
+  db:
+  minio:
+  broker:
