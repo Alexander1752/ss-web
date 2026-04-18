@@ -1,5 +1,8 @@
 ### Repo-specific
-/uploads/
+.vscode
+
+# Secrets folder
+/secrets/
 
 
 ### Python
@@ -393,5 +396,3 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# Secrets folder
-secrets/*
