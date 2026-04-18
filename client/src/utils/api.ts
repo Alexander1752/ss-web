@@ -1,8 +1,6 @@
-const DEFAULT_BASE_URL = '/api';
-
 const normalize = (url: string) => url.replace(/\/+$/, '');
 
-export const API_BASE_URL = normalize(import.meta.env.VITE_API_BASE_URL ?? DEFAULT_BASE_URL);
+export const API_BASE_URL = normalize("/api");
 
 const buildUrl = (path: string) => {
   if (path.startsWith('http')) {

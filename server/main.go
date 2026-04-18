@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net/http"
 	"os"
@@ -17,9 +19,6 @@ import (
 	"mqtt-streaming-server/broker"
 	"mqtt-streaming-server/routes"
 )
-
-// TODO: Implement mTLS security
-// See docs/SECURITY_IMPLEMENTATION.md for instructions on how to configure TLS
 
 func main() {
 	// Connect to MongoDB
@@ -50,9 +49,32 @@ func main() {
 	defer ocrClient.Close()
 	brokerHandler := broker.NewBrokerHandler(db, ocrClient)
 
+	caCert, err := os.ReadFile("/certs/ca.crt")
+	if err != nil {
+		panic(fmt.Errorf("failed to read MQTT CA certificate: %w", err))
+	}
+
+	certPool := x509.NewCertPool()
+	if ok := certPool.AppendCertsFromPEM(caCert); !ok {
+		panic("failed to append MQTT CA certificate")
+	}
+
+	clientCert, err := tls.LoadX509KeyPair("/certs/client.crt", "/certs/client.key")
+	if err != nil {
+		panic(fmt.Errorf("failed to load MQTT client certificate: %w", err))
+	}
+
+	tlsConfig := &tls.Config{
+		RootCAs:      certPool,
+		Certificates: []tls.Certificate{clientCert},
+		MinVersion:   tls.VersionTLS12,
+		ServerName:   os.Getenv("MQTT_HOST"),
+	}
+
 	opts := mqtt.NewClientOptions()
-	opts.AddBroker("tcp://broker:1883")
+	opts.AddBroker("ssl://" + os.Getenv("MQTT_HOST") + ":8883")
 	opts.SetClientID("web")
+	opts.SetTLSConfig(tlsConfig)
 
 	// Start the connection
 	client := mqtt.NewClient(opts)
@@ -81,7 +103,7 @@ func main() {
 
 	go func() {
 		fmt.Println("Starting HTTPS server on port 5000...")
-		if err := http.ListenAndServeTLS(":5000", "cert.pem", "key.pem", handler); err != nil {
+		if err := http.ListenAndServeTLS(":5000", "/certs/server.crt", "/certs/server.key", handler); err != nil {
 			panic(err)
 		}
 	}()
