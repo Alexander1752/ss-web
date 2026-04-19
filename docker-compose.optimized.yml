@@ -1,0 +1,25 @@
+# docker-compose.optimized.yml
+#
+# Override for running Keycloak in optimized mode. At this stage we
+# only swap the public image for our locally built one and replace
+# `start-dev` with `start --optimized`. The DB is still the default
+# dev-file (H2, ephemeral) — Postgres + memory limits arrive in
+# iteration 2.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.optimized.yml up -d --build
+#
+# Everything else (port 8081, healthcheck, container_name, networks,
+# environment KEYCLOAK_ADMIN*, volume mount for imports) is inherited
+# from docker-compose.yml.
+
+services:
+  keycloak:
+    image: lf4a/keycloak:optimized
+    build:
+      context: ./keycloak
+      dockerfile: Containerfile
+    command:
+      - start
+      - --optimized
+      - --import-realm
