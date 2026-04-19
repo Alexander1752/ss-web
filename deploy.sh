@@ -17,7 +17,7 @@ rm -rf ./secrets 2>/dev/null
 mkdir -p ./secrets
 cp $(mkcert -CAROOT)/rootCA.pem ./secrets/ca.pem
 
-mkcert -cert-file ./secrets/web.crt -key-file ./secrets/web.key "lfa4.com" "www.lf4a.com" "frontend" "localhost" "127.0.0.1"
+mkcert -cert-file ./secrets/web.crt -key-file ./secrets/web.key "lf4a.com" "www.lf4a.com" "frontend" "localhost" "127.0.0.1"
 mkcert -cert-file ./secrets/server.crt -key-file ./secrets/server.key "api.lf4a.com" "go-api" "localhost" "127.0.0.1"
 mkcert -cert-file ./secrets/client.crt -key-file ./secrets/client.key -client "go-api" "web" "api.lf4a.com"
 mkcert -cert-file ./secrets/broker.crt -key-file ./secrets/broker.key "broker.lf4a.com" "broker" "localhost" "127.0.0.1"

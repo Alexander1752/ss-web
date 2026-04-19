@@ -25,11 +25,17 @@ services:
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_HEALTH_ENABLED: "true"
     command: start-dev --import-realm
     ports:
       - 8081:8080
     volumes:
       - ./keycloak:/opt/keycloak/data/import
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000;echo -e 'GET /health/ready HTTP/1.1\r\nhost: http://localhost\r\nConnection: close\r\n\r\n' >&3;if [ $? -eq 0 ]; then echo 'Healthcheck Successful';exit 0;else echo 'Healthcheck Failed';exit 1;fi;"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
     networks:
       - keycloak
       - backend
@@ -45,9 +51,12 @@ services:
     image: lf4a/mqtt-ss-api:local
     env_file: ./server/.env
     depends_on:
-      - mongo-db
-      - broker
-      - keycloak
+      mongo-db:
+        condition: service_started
+      broker:
+        condition: service_started
+      keycloak:
+        condition: service_healthy
     ports:
       - 5000:5000
     networks:
@@ -124,6 +133,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     command: server /data --certs-dir /certs --console-address ":9001"
     ports:
+      - 9000:9000
       - 9001:9001
     volumes:
       - minio-data:/data
@@ -131,7 +141,9 @@ services:
       - ./secrets/minio.crt:/certs/public.crt
       - ./secrets/minio.key:/certs/private.key
     networks:
-      - minio
+      minio:
+        aliases:
+          - minio.lf4a.com
 
 volumes:
   mongo-data:
