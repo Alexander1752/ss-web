@@ -29,6 +29,7 @@ services:
     command: start-dev --import-realm
     ports:
       - 8081:8080
+      - 9000:9000
     volumes:
       - ./keycloak/imports:/opt/keycloak/data/import
     healthcheck:

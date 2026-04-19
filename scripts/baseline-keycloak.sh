@@ -13,7 +13,7 @@ set -euo pipefail
 COMPOSE_FILES=${COMPOSE_FILES:-"-f docker-compose.yml"}
 SERVICE=${SERVICE:-keycloak}
 CONTAINER=${CONTAINER:-keycloak}
-HEALTH_URL=${HEALTH_URL:-"http://localhost:8081/health/ready"}
+HEALTH_CMD=${HEALTH_CMD:-"docker exec $CONTAINER curl -fsS -o /dev/null http://localhost:9000/health/ready"}
 TIMEOUT=${TIMEOUT:-300}  # seconds
 
 LABEL=${1:-run}
@@ -26,7 +26,7 @@ log() { echo "$@" | tee -a "$OUT_FILE"; }
 
 wait_ready() {
   local start_ts=$1
-  while ! curl -fsS -o /dev/null "$HEALTH_URL" 2>/dev/null; do
+  while ! eval "$HEALTH_CMD" 2>/dev/null; do
     sleep 1
     local now=$(date +%s)
     if (( now - start_ts > TIMEOUT )); then
