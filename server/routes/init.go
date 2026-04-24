@@ -2,8 +2,10 @@ package routes
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"mqtt-streaming-server/utils"
 	"net"
 	"net/http"
 	"os"
@@ -11,9 +13,9 @@ import (
 	"sync"
 	"time"
 
+	keyfunc "github.com/MicahParks/keyfunc"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/golang-jwt/jwt/v4"
-	keyfunc "github.com/MicahParks/keyfunc"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -123,9 +125,18 @@ func withAuth(next http.Handler) http.Handler {
 		if realm == "" {
 			realm = "ss-project"
 		}
+
 		jwksURL := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/certs", keycloakURL, realm)
+		var client = &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					RootCAs: utils.GetCACertPool(),
+				},
+			},
+		}
 		var err error
 		globalJWKS, err = keyfunc.Get(jwksURL, keyfunc.Options{
+			Client:          client,
 			RefreshInterval: time.Hour,
 			RefreshTimeout:  5 * time.Minute,
 		})

@@ -24,7 +24,7 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 const keycloak = new Keycloak({
-  url: import.meta.env.VITE_KEYCLOAK_URL ?? 'http://localhost:8081',
+  url: '/auth',
   realm: import.meta.env.VITE_KEYCLOAK_REALM ?? 'ss-project',
   clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID ?? 'ss-web',
 });

@@ -4,6 +4,7 @@ services:
       context: ./client
       dockerfile: Dockerfile
     restart: always
+    container_name: frontend
     depends_on:
       - go-api
     cap_add:
@@ -18,28 +19,61 @@ services:
     networks:
       - backend
       - keycloak
+      - minio
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.2
     container_name: keycloak
+    restart: always
+    depends_on:
+      - postgres
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
       KC_HEALTH_ENABLED: "true"
-    command: start-dev --import-realm
-    ports:
-      - 8081:8080
-      - 9000:9000
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTPS_CERTIFICATE_FILE: /opt/keycloak/conf/certs/tls.crt
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /opt/keycloak/conf/certs/tls.key
+      KC_HTTP_RELATIVE_PATH: "/auth"
+      KC_PROXY_HEADERS: "xforwarded"
+    command: start --import-realm
     volumes:
-      - ./keycloak/imports:/opt/keycloak/data/import
+      - ./keycloak:/opt/keycloak/data/import
+      - ./secrets/ca.pem:/opt/keycloak/conf/certs/ca.pem
+      - ./secrets/keycloak.crt:/opt/keycloak/conf/certs/tls.crt
+      - ./secrets/keycloak.key:/opt/keycloak/conf/certs/tls.key
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000;echo -e 'GET /health/ready HTTP/1.1\r\nhost: http://localhost\r\nConnection: close\r\n\r\n' >&3;if [ $? -eq 0 ]; then echo 'Healthcheck Successful';exit 0;else echo 'Healthcheck Failed';exit 1;fi;"]
       interval: 5s
       timeout: 5s
       retries: 30
     networks:
+      keycloak:
+        aliases:
+          - auth.lf4a.com
+      backend:
+  
+  postgres:
+    image: postgres:16
+    container_name: keycloak_db
+    restart: always
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
       - keycloak
-      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # Go API Service
   go-api:
@@ -58,8 +92,6 @@ services:
         condition: service_started
       keycloak:
         condition: service_healthy
-    ports:
-      - 5000:5000
     networks:
       backend:
         aliases:
@@ -67,6 +99,7 @@ services:
       db:
       minio:
       broker:
+      keycloak:
     volumes:
       - ./secrets/ca.pem:/certs/ca.crt
       - ./secrets/server.crt:/certs/server.crt
@@ -77,6 +110,7 @@ services:
   broker:
     user: "${UID}:${GID}"
     image: eclipse-mosquitto:latest
+    restart: always
     container_name: broker
     hostname: broker
     ports:
@@ -134,7 +168,6 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     command: server /data --certs-dir /certs --console-address ":9001"
     ports:
-      - 9000:9000
       - 9001:9001
     volumes:
       - minio-data:/data
@@ -149,6 +182,7 @@ services:
 volumes:
   mongo-data:
   minio-data:
+  postgres-data:
 
 networks:
   keycloak:
