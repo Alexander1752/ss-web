@@ -2,6 +2,7 @@
 # Convenience wrapper for starting the development environment
 
 install_mkcert() {
+    sudo apt update && sudo apt install libnss3-tools -y
     curl -JLO "https://dl.filippo.io/mkcert/latest?for=linux/amd64"
     chmod +x mkcert-v*-linux-amd64
     sudo mv mkcert-v*-linux-amd64 /usr/local/bin/mkcert
@@ -23,5 +24,6 @@ mkcert -cert-file ./secrets/client.crt -key-file ./secrets/client.key -client "g
 mkcert -cert-file ./secrets/broker.crt -key-file ./secrets/broker.key "broker.lf4a.com" "broker" "localhost" "127.0.0.1"
 mkcert -cert-file ./secrets/minio.crt -key-file ./secrets/minio.key "minio.lf4a.com" "minio" "localhost" "127.0.0.1"
 mkcert -cert-file ./secrets/express.crt -key-file ./secrets/express.key "express.lf4a.com" "express" "localhost" "127.0.0.1"
+mkcert -cert-file ./secrets/keycloak.crt -key-file ./secrets/keycloak.key "auth.lf4a.com" "keycloak" "localhost" "127.0.0.1"
 
-env "UID=$(id -u)" "GID=$(id -g)" "COMPOSE_BAKE=true" docker compose -f docker-compose.yml up --build
+env "UID=$(id -u)" "GID=$(id -g)" "COMPOSE_BAKE=true" docker compose -f docker-compose.yml up --build -d

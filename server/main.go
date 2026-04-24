@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"net/http"
 	"os"
@@ -18,6 +17,7 @@ import (
 
 	"mqtt-streaming-server/broker"
 	"mqtt-streaming-server/routes"
+	"mqtt-streaming-server/utils"
 )
 
 func main() {
@@ -49,23 +49,13 @@ func main() {
 	defer ocrClient.Close()
 	brokerHandler := broker.NewBrokerHandler(db, ocrClient)
 
-	caCert, err := os.ReadFile("/certs/ca.crt")
-	if err != nil {
-		panic(fmt.Errorf("failed to read MQTT CA certificate: %w", err))
-	}
-
-	certPool := x509.NewCertPool()
-	if ok := certPool.AppendCertsFromPEM(caCert); !ok {
-		panic("failed to append MQTT CA certificate")
-	}
-
 	clientCert, err := tls.LoadX509KeyPair("/certs/client.crt", "/certs/client.key")
 	if err != nil {
 		panic(fmt.Errorf("failed to load MQTT client certificate: %w", err))
 	}
 
 	tlsConfig := &tls.Config{
-		RootCAs:      certPool,
+		RootCAs:      utils.GetCACertPool(),
 		Certificates: []tls.Certificate{clientCert},
 		MinVersion:   tls.VersionTLS12,
 		ServerName:   os.Getenv("MQTT_HOST"),

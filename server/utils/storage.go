@@ -40,11 +40,11 @@ func initStorageClient(ctx context.Context) error {
 		useSSL := strings.EqualFold(strings.TrimSpace(os.Getenv("MINIO_USE_SSL")), "true")
 		skipVerify := strings.EqualFold(strings.TrimSpace(os.Getenv("MINIO_INSECURE_SKIP_VERIFY")), "true")
 
-		var transport http.RoundTripper
-		if useSSL && skipVerify {
-			transport = &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			}
+		var transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: skipVerify,
+				RootCAs:            GetCACertPool(),
+			},
 		}
 
 		client, err := minio.New(endpoint, &minio.Options{
@@ -128,7 +128,7 @@ func GetPresignedURL(keyName string) string {
 		return ""
 	}
 
-	return result.String()
+	return fmt.Sprintf("/storage%s", result.RequestURI())
 }
 
 func DeleteFromMinIO(keyName string) error {
