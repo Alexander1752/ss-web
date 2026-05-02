@@ -22,27 +22,30 @@ services:
       - minio
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.2
+    image: lf4a/keycloak:optimized
+    build:
+      context: ./keycloak
+      dockerfile: Containerfile
     container_name: keycloak
     restart: always
     depends_on:
       - postgres
     environment:
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
-      KC_DB_USERNAME: keycloak
-      KC_DB_PASSWORD: keycloak
+      KC_DB_USERNAME: ${KC_DB_USERNAME:-keycloak}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD:-keycloak}
       KC_HEALTH_ENABLED: "true"
-      KC_HOSTNAME_STRICT: "false"
       KC_HTTPS_CERTIFICATE_FILE: /opt/keycloak/conf/certs/tls.crt
       KC_HTTPS_CERTIFICATE_KEY_FILE: /opt/keycloak/conf/certs/tls.key
-      KC_HTTP_RELATIVE_PATH: "/auth"
-      KC_PROXY_HEADERS: "xforwarded"
-    command: start --import-realm
+    command:
+      - start
+      - --optimized
+      - --import-realm
     volumes:
-      - ./keycloak:/opt/keycloak/data/import
+      - ./keycloak/imports:/opt/keycloak/data/import
       - ./secrets/ca.pem:/opt/keycloak/conf/certs/ca.pem
       - ./secrets/keycloak.crt:/opt/keycloak/conf/certs/tls.crt
       - ./secrets/keycloak.key:/opt/keycloak/conf/certs/tls.key
@@ -52,25 +55,26 @@ services:
       timeout: 5s
       retries: 30
     networks:
+      keycloak-db:
       keycloak:
         aliases:
           - auth.lf4a.com
       backend:
   
   postgres:
-    image: postgres:16
+    image: postgres:16-alpine
     container_name: keycloak_db
     restart: always
     environment:
       POSTGRES_DB: keycloak
-      POSTGRES_USER: keycloak
-      POSTGRES_PASSWORD: keycloak
+      POSTGRES_USER: ${KC_DB_USERNAME:-keycloak}
+      POSTGRES_PASSWORD: ${KC_DB_PASSWORD:-keycloak}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
-      - keycloak
+      - keycloak-db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      test: ["CMD-SHELL", "pg_isready -U ${KC_DB_USERNAME:-keycloak} -d keycloak"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -135,6 +139,7 @@ services:
       - mongo-data:/data/db
     networks:
       - db
+      - express
   
   mongo-express:
     container_name: mongo-express
@@ -154,7 +159,7 @@ services:
     depends_on:
       - mongo-db
     networks:
-      - db
+      - express
     volumes:
       - ./secrets/express.crt:/certs/express.crt
       - ./secrets/express.key:/certs/express.key
@@ -186,7 +191,9 @@ volumes:
 
 networks:
   keycloak:
+  keycloak-db:
   backend:
   db:
+  express:
   minio:
   broker:
