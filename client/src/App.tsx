@@ -8,6 +8,7 @@ import DevicesPage from './pages/devicesPage';
 import StatisticsPage from './pages/statisticsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 const Layout = () => {
   const navigate = useNavigate();
@@ -57,7 +58,7 @@ const Layout = () => {
     ];
 
   return (
-    <>
+    <div className="min-h-screen bg-white dark:bg-gray-950 transition-colors duration-300">
       <Navbar
         title="LF4A - Delta Force"
         leftButtons={leftButtons}
@@ -66,14 +67,15 @@ const Layout = () => {
       <div className="pt-16 px-4">
         <Outlet />
       </div>
-    </>
+    </div>
   );
 };
 
 const App = () => {
   return (
-    <BrowserRouter>
-      <AuthProvider>
+    <ThemeProvider>
+      <BrowserRouter>
+        <AuthProvider>
         <Routes>
           {/* Common layout for all routes */}
           <Route element={<Layout />}>
@@ -97,8 +99,9 @@ const App = () => {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+        </AuthProvider>
+      </BrowserRouter>
+    </ThemeProvider>
   );
 };
 
