@@ -94,7 +94,8 @@ func TestDeviceController_GetDevices(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/devices", nil)
 		rr := httptest.NewRecorder()
 
-		ctlr.GetDevices(rr, req)
+			mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
+			ctlr := routes.DeviceController{Service: &routes.DeviceService{Repo: mockRepo}}
 
 		if rr.Code != http.StatusMethodNotAllowed {
 			t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
@@ -161,7 +162,8 @@ func TestDeviceController_SwitchDeviceMode(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/devices/switch", nil)
 		rr := httptest.NewRecorder()
 
-		ctlr.SwitchDeviceMode(rr, req)
+			mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
+			ctlr := routes.DeviceController{Service: &routes.DeviceService{Repo: mockRepo}}
 
 		if rr.Code != http.StatusMethodNotAllowed {
 			t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
@@ -366,5 +368,68 @@ func TestDeviceController_SendCommand(t *testing.T) {
 				t.Fatalf("expected payload %s, got %v", cmd, mqttClient.lastPayload)
 			}
 		})
+	}
+}
+
+func TestDeviceController_SwitchDeviceMode_MethodNotAllowed(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
+	ctlr := routes.DeviceController{Service: &routes.DeviceService{Repo: mockRepo}}
+
+	url := "/devices/switch"
+	req := httptest.NewRequest(http.MethodGet, url, nil) // Using GET instead of POST
+	rr := httptest.NewRecorder()
+
+	ctlr.SwitchDeviceMode(rr, req)
+
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Errorf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "Method not allowed") {
+		t.Errorf("expected body to contain 'Method not allowed', got %q", rr.Body.String())
+	}
+}
+
+func TestDeviceController_GetDevices_MethodNotAllowed(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
+	ctlr := routes.DeviceController{Service: &routes.DeviceService{Repo: mockRepo}}
+
+	req := httptest.NewRequest(http.MethodPost, "/devices", nil) // Using POST instead of GET
+	rr := httptest.NewRecorder()
+
+	ctlr.GetDevices(rr, req)
+
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Errorf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "Method not allowed") {
+		t.Errorf("expected body to contain 'Method not allowed', got %q", rr.Body.String())
+	}
+}
+
+func TestDeviceController_SwitchDeviceMode_InvalidRequestBody(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
+	ctlr := routes.DeviceController{Service: &routes.DeviceService{Repo: mockRepo}}
+
+	url := "/devices/switch"
+	req := httptest.NewRequest(http.MethodPost, url, strings.NewReader("invalid json"))
+	ctx := context.WithValue(req.Context(), "email", "	invalid@example.com")
+	ctx = context.WithValue(ctx, "role", "admin")
+	req = req.WithContext(ctx)
+	rr := httptest.NewRecorder()
+	ctlr.SwitchDeviceMode(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d", http.StatusBadRequest, rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "Invalid request body") {
+		t.Errorf("expected body to contain 'Invalid request body', got %q", rr.Body.String())
 	}
 }

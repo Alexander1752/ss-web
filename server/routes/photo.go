@@ -2,7 +2,7 @@ package routes
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -10,18 +10,18 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 
-	"mqtt-streaming-server/domain"
 	"mqtt-streaming-server/repository"
-	"mqtt-streaming-server/utils"
 )
 
+// PhotoController handles HTTP requests for photo operations.
+// Business logic is delegated to PhotoService.
 type PhotoController struct {
-	PhotoRepository domain.PhotoRepository
+	Service *PhotoService
 }
 
 func InitPhotoRoutes(db *mongo.Database, mux *http.ServeMux) {
 	photoController := &PhotoController{
-		PhotoRepository: repository.NewPhotoRepository(db),
+		Service: NewPhotoService(repository.NewPhotoRepository(db)),
 	}
 
 	mux.Handle("/photos", withAuth(http.HandlerFunc(photoController.GetPhotos)))
@@ -35,8 +35,6 @@ func (ctlr PhotoController) GetPhotos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
-
 	start := r.URL.Query().Get("start")
 	end := r.URL.Query().Get("end")
 	text := r.URL.Query().Get("text")
@@ -45,7 +43,6 @@ func (ctlr PhotoController) GetPhotos(w http.ResponseWriter, r *http.Request) {
 	if start == "" {
 		start = strconv.FormatInt(time.Now().Add(-24*time.Hour).UTC().Unix(), 10)
 	}
-
 	if end == "" {
 		end = strconv.FormatInt(time.Now().UTC().Unix(), 10)
 	}
@@ -62,34 +59,10 @@ func (ctlr PhotoController) GetPhotos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filters := map[string]any{
-		"timestamp": map[string]any{
-			"$gte": time.Unix(startInt, 0),
-			"$lte": time.Unix(endInt, 0),
-		},
-	}
-
-	if text != "" {
-		filters["text"] = map[string]any{
-			"$regex":   text,
-			"$options": "i",
-		}
-	}
-
-	if deviceID != "" {
-		filters["device_id"] = deviceID
-	}
-
-	photos, err := ctlr.PhotoRepository.GetPhotos(ctx, filters)
+	photos, err := ctlr.Service.ListPhotos(r.Context(), startInt, endInt, text, deviceID)
 	if err != nil {
-		fmt.Println("Error fetching photos:", err)
 		http.Error(w, "Failed to fetch photos: ", http.StatusInternalServerError)
 		return
-	}
-
-	for _, photo := range photos {
-		keyName := fmt.Sprintf("photos/%d.%s", photo.Timestamp.Unix(), photo.ImageType)
-		photo.PresignedURL = utils.GetPresignedURL(keyName)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -102,37 +75,19 @@ func (ctlr PhotoController) DeletePhoto(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	ctx := r.Context()
-
-	// Extract photo ID from URL path: /photos/{id}
 	path := strings.TrimPrefix(r.URL.Path, "/photos/")
 	if path == "" {
 		http.Error(w, "Photo ID required", http.StatusBadRequest)
 		return
 	}
-	photoID := path
 
-	// Get the photo to find the file name
-	photo, err := ctlr.PhotoRepository.GetByID(ctx, photoID)
-	if err != nil {
-		fmt.Println("Error getting photo:", err)
-		http.Error(w, "Photo not found", http.StatusNotFound)
+	if err := ctlr.Service.DeletePhoto(r.Context(), path); err != nil {
+		if errors.Is(err, ErrPhotoNotFound) {
+			http.Error(w, "Photo not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Failed to delete photo", http.StatusInternalServerError)
+		}
 		return
-	}
-
-	// Delete from database
-	err = ctlr.PhotoRepository.Delete(ctx, photoID)
-	if err != nil {
-		fmt.Println("Error deleting photo:", err)
-		http.Error(w, "Failed to delete photo", http.StatusInternalServerError)
-		return
-	}
-
-	// Delete the image object from MinIO
-	keyName := fmt.Sprintf("photos/%d.%s", photo.Timestamp.Unix(), photo.ImageType)
-	if err := utils.DeleteFromMinIO(keyName); err != nil {
-		fmt.Printf("Warning: Could not delete object %s: %v\n", keyName, err)
-		// Don't fail the request - the DB record is already deleted
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -145,24 +100,16 @@ func (ctlr PhotoController) DeleteAllPhotos(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	ctx := r.Context()
-
-	// Delete all photos from database
-	deletedCount, err := ctlr.PhotoRepository.DeleteAll(ctx)
+	count, err := ctlr.Service.DeleteAllPhotos(r.Context())
 	if err != nil {
-		fmt.Println("Error deleting all photos:", err)
 		http.Error(w, "Failed to delete photos", http.StatusInternalServerError)
 		return
-	}
-
-	// Delete all image objects from MinIO under photos/
-	if err := utils.DeletePrefixFromMinIO("photos/"); err != nil {
-		fmt.Printf("Warning: Could not delete all image objects: %v\n", err)
 	}
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]any{
 		"message": "All photos deleted successfully",
-		"deleted": deletedCount,
+		"deleted": count,
 	})
 }
+
