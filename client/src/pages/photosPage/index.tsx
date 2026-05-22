@@ -268,14 +268,14 @@ const PhotosPage: React.FC = () => {
 
   return (
     <div className="container mx-auto">
-      <h1 className="text-2xl font-semibold text-sky-700 mb-6">Photos</h1>
+      <h1 className="text-2xl font-semibold text-sky-700 dark:text-sky-400 mb-6">Photos</h1>
 
       {/* Search and filter section */}
-      <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm mb-6">
         <div className="flex flex-wrap items-end gap-4">
           {/* Text search */}
           <div className="flex-1 min-w-[200px]">
-            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Search Text
             </label>
             <input
@@ -284,13 +284,13 @@ const PhotosPage: React.FC = () => {
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               placeholder="Search text in photos..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
             />
           </div>
 
           {/* Start date */}
           <div>
-            <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Start Date
             </label>
             <input
@@ -298,13 +298,13 @@ const PhotosPage: React.FC = () => {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
             />
           </div>
 
           {/* End date */}
           <div>
-            <label htmlFor="end-date" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="end-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               End Date
             </label>
             <input
@@ -312,21 +312,21 @@ const PhotosPage: React.FC = () => {
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
             />
           </div>
 
           {/* Device dropdown - always shown, with or without device data */}
           {!deviceLoading && (
             <div>
-              <label htmlFor="device" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="device" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Device
               </label>
               <select
                 id="device"
                 value={selectedDevice}
                 onChange={(e) => setSelectedDevice(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
               >
                 <option value="all">All</option>
                 {!deviceError && devices.map(device => (
@@ -343,7 +343,7 @@ const PhotosPage: React.FC = () => {
             <div className="flex items-end">
               <div className="h-10 flex items-center">
                 <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-sky-500 mr-2"></div>
-                <span className="text-sm text-gray-500">Loading devices...</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Loading devices...</span>
               </div>
             </div>
           )}
@@ -360,11 +360,11 @@ const PhotosPage: React.FC = () => {
           </div>
 
           {/* Separator */}
-          <div className="w-px h-10 bg-gray-300 mx-2 hidden md:block"></div>
+          <div className="w-px h-10 bg-gray-300 dark:bg-gray-600 mx-2 hidden md:block"></div>
 
           {/* ESP Camera Controls */}
-          <div className="flex items-center gap-3 bg-gray-50 p-2 rounded-md border border-gray-200">
-            <span className="text-sm font-medium text-gray-700 whitespace-nowrap">ESP Camera:</span>
+          <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-700 p-2 rounded-md border border-gray-200 dark:border-gray-600">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">ESP Camera:</span>
 
             <div className="flex gap-2">
               <button
@@ -405,7 +405,7 @@ const PhotosPage: React.FC = () => {
 
       {/* Command Status Message */}
       {commandMessage && (
-        <div className={`mb-6 p-4 rounded-md shadow-sm ${commandMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+          <div className={`mb-6 p-4 rounded-md shadow-sm ${commandMessage.type === 'success' ? 'bg-green-50 dark:bg-green-900/40 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-700' : 'bg-red-50 dark:bg-red-900/40 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-700'}
           }`}>
           <div className="flex items-center">
             <span className="text-lg mr-2">{commandMessage.type === 'success' ? '✅' : '❌'}</span>
@@ -417,13 +417,13 @@ const PhotosPage: React.FC = () => {
       {/* Delete All Confirmation Modal */}
       {deleteAllConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md shadow-xl">
-            <h3 className="text-lg font-semibold text-red-600 mb-4">⚠️ Delete All Photos</h3>
-            <p className="text-gray-700 mb-6">Are you sure you want to delete ALL photos? This action cannot be undone.</p>
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md shadow-xl">
+            <h3 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-4">⚠️ Delete All Photos</h3>
+            <p className="text-gray-700 dark:text-gray-300 mb-6">Are you sure you want to delete ALL photos? This action cannot be undone.</p>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setDeleteAllConfirm(false)}
-                className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded-md transition-colors"
+                className="px-4 py-2 bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-100 rounded-md transition-colors"
                 disabled={deletingAll}
               >
                 Cancel
@@ -441,7 +441,7 @@ const PhotosPage: React.FC = () => {
       )}
 
       {/* Photos section with fixed height and scroll */}
-      <div className="bg-gray-50 p-4 rounded-lg shadow-sm overflow-y-auto max-h-[60vh]">
+      <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg shadow-sm overflow-y-auto max-h-[60vh]">
         {/* Loading state */}
         {photosLoading && (
           <div className="flex justify-center items-center h-40">
@@ -451,7 +451,7 @@ const PhotosPage: React.FC = () => {
 
         {/* Error state */}
         {!photosLoading && photosError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md">
+          <div className="bg-red-50 dark:bg-red-900/40 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-300 p-4 rounded-md">
             <p className="font-medium">Error loading photos</p>
             <p className="mt-1">{photosError}</p>
           </div>
@@ -461,7 +461,7 @@ const PhotosPage: React.FC = () => {
         {!photosLoading && !photosError && (
           <>
             {(photos || []).length === 0 ? (
-              <div className="text-center text-gray-500 py-10">
+              <div className="text-center text-gray-500 dark:text-gray-400 py-10">
                 No photos found matching your search criteria
               </div>
             ) : (

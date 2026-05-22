@@ -8,6 +8,7 @@ import DevicesPage from './pages/devicesPage';
 import StatisticsPage from './pages/statisticsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 const Layout = () => {
   const navigate = useNavigate();
@@ -76,6 +77,7 @@ const Layout = () => {
 const App = () => {
   return (
     <BrowserRouter>
+      <ThemeProvider>
       <AuthProvider>
         <Routes>
           {/* Common layout for all routes */}
@@ -101,6 +103,7 @@ const App = () => {
           </Route>
         </Routes>
       </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 };

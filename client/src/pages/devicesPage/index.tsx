@@ -185,7 +185,7 @@ const DevicesPage: React.FC = () => {
 
   return (
     <div className="container mx-auto">
-      <h1 className="text-2xl font-semibold text-sky-700 mb-6">Devices</h1>
+      <h1 className="text-2xl font-semibold text-sky-700 dark:text-sky-400 mb-6">Devices</h1>
 
       {/* MQTT Broker Connection Info */}
       <div className="bg-gradient-to-r from-sky-500 to-blue-600 text-white p-4 rounded-lg shadow-md mb-6">
@@ -212,7 +212,7 @@ const DevicesPage: React.FC = () => {
       </div>
 
       {/* Devices grid with fixed height and scroll */}
-      <div className="bg-gray-50 p-4 rounded-lg shadow-sm overflow-y-auto max-h-[60vh]">
+      <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg shadow-sm overflow-y-auto max-h-[60vh]">
         {/* Loading state */}
         {loading && (
           <div className="flex justify-center items-center h-40">
@@ -222,7 +222,7 @@ const DevicesPage: React.FC = () => {
 
         {/* Error state */}
         {!loading && error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md">
+          <div className="bg-red-50 dark:bg-red-900/40 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-300 p-4 rounded-md">
             <p className="font-medium">You don't have permission to view connected devices</p>
             <p className="mt-1 text-sm">Please contact your administrator for access</p>
           </div>
@@ -232,7 +232,7 @@ const DevicesPage: React.FC = () => {
         {!loading && !error && (
           <>
             {devices.length === 0 ? (
-              <div className="text-center text-gray-500 py-10">
+              <div className="text-center text-gray-500 dark:text-gray-400 py-10">
                 No devices found
               </div>
             ) : (
@@ -257,21 +257,21 @@ const DevicesPage: React.FC = () => {
 
                       {/* Loading overlay */}
                       {actionState.loading && (
-                        <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center rounded-lg">
+                        <div className="absolute inset-0 bg-white dark:bg-gray-900 bg-opacity-70 dark:bg-opacity-70 flex items-center justify-center rounded-lg">
                           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-sky-500"></div>
                         </div>
                       )}
 
                       {/* Success notification */}
                       {actionState.success && (
-                        <div className="absolute top-0 right-0 left-0 bg-green-100 text-green-800 text-sm p-2 rounded-t-lg text-center">
+                        <div className="absolute top-0 right-0 left-0 bg-green-100 dark:bg-green-900/60 text-green-800 dark:text-green-300 text-sm p-2 rounded-t-lg text-center">
                           Command sent successfully
                         </div>
                       )}
 
                       {/* Error notification */}
                       {actionState.error && (
-                        <div className="absolute top-0 right-0 left-0 bg-red-100 text-red-800 text-sm p-2 rounded-t-lg text-center">
+                        <div className="absolute top-0 right-0 left-0 bg-red-100 dark:bg-red-900/60 text-red-800 dark:text-red-300 text-sm p-2 rounded-t-lg text-center">
                           {actionState.error}
                         </div>
                       )}

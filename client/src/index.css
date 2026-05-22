@@ -4,6 +4,15 @@
 @tailwind components;
 @tailwind utilities;
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  body {
+    @apply bg-white dark:bg-gray-900;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+}
+
 @keyframes scaleIn {
   0% {
     opacity: 0;

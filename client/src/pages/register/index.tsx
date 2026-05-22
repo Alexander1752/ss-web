@@ -47,24 +47,24 @@ const RegisterPage: React.FC = () => {
 
   return (
     <div className="flex justify-center items-center min-h-[80vh]">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-semibold text-sky-700 mb-6 text-center">Register</h2>
+      <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md w-full max-w-md">
+        <h2 className="text-2xl font-semibold text-sky-700 dark:text-sky-400 mb-6 text-center">Register</h2>
         
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-300 text-red-700 rounded-md">
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/40 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 rounded-md">
             {error}
           </div>
         )}
         
         {success && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-300 text-green-700 rounded-md">
+          <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/40 border border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 rounded-md">
             {success}
           </div>
         )}
         
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Email Address
             </label>
             <input
@@ -72,14 +72,14 @@ const RegisterPage: React.FC = () => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
               required
               disabled={loading || success !== null}
             />
           </div>
           
           <div className="mb-6">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Password
             </label>
             <input
@@ -87,7 +87,7 @@ const RegisterPage: React.FC = () => {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
               required
               disabled={loading || success !== null}
             />
