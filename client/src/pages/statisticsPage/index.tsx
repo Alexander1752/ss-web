@@ -136,17 +136,21 @@ const StatisticsPage: React.FC = () => {
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
     const renderChartToggle = (currentType: 'bar' | 'pie', setType: (t: 'bar' | 'pie') => void) => (
-        <div className="flex bg-gray-100 p-1 rounded-md">
+        <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-md">
             <button
                 onClick={() => setType('bar')}
-                className={`px-3 py-1 text-sm rounded-sm transition-colors ${currentType === 'bar' ? 'bg-white shadow-sm text-sky-600 font-medium' : 'text-gray-500 hover:text-gray-700'
+                className={`px-3 py-1 text-sm rounded-sm transition-colors ${currentType === 'bar'
+                    ? 'bg-white dark:bg-gray-600 shadow-sm text-sky-600 dark:text-sky-300 font-medium'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                     }`}
             >
                 Bar
             </button>
             <button
                 onClick={() => setType('pie')}
-                className={`px-3 py-1 text-sm rounded-sm transition-colors ${currentType === 'pie' ? 'bg-white shadow-sm text-sky-600 font-medium' : 'text-gray-500 hover:text-gray-700'
+                className={`px-3 py-1 text-sm rounded-sm transition-colors ${currentType === 'pie'
+                    ? 'bg-white dark:bg-gray-600 shadow-sm text-sky-600 dark:text-sky-300 font-medium'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                     }`}
             >
                 Pie
@@ -191,26 +195,26 @@ const StatisticsPage: React.FC = () => {
 
     return (
         <div className="container mx-auto pb-10">
-            <h1 className="text-2xl font-semibold text-sky-700 mb-6">Statistics</h1>
+            <h1 className="text-2xl font-semibold text-sky-700 dark:text-sky-300 mb-6">Statistics</h1>
 
             {/* Date Filter */}
-            <div className="bg-white p-4 rounded-lg shadow-sm mb-6 flex gap-4 items-end">
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm mb-6 flex gap-4 items-end">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
                     <input
                         type="date"
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-md focus:ring-sky-500"
+                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-sky-500"
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
                     <input
                         type="date"
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-md focus:ring-sky-500"
+                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-sky-500"
                     />
                 </div>
                 <button
@@ -226,14 +230,14 @@ const StatisticsPage: React.FC = () => {
                     <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500"></div>
                 </div>
             ) : error ? (
-                <div className="bg-red-50 text-red-700 p-4 rounded-md">{error}</div>
+                <div className="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 p-4 rounded-md">{error}</div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 
                     {/* Control Type Chart */}
-                    <div className="bg-white p-6 rounded-lg shadow-md">
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-medium text-gray-800">Control Type Distribution</h3>
+                            <h3 className="text-lg font-medium text-gray-800 dark:text-gray-100">Control Type Distribution</h3>
                             {renderChartToggle(controlChartType, setControlChartType)}
                         </div>
                         <div className="h-[300px]">
@@ -242,9 +246,9 @@ const StatisticsPage: React.FC = () => {
                     </div>
 
                     {/* Aviz Medical Chart */}
-                    <div className="bg-white p-6 rounded-lg shadow-md">
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-medium text-gray-800">Medical Opinion Results</h3>
+                            <h3 className="text-lg font-medium text-gray-800 dark:text-gray-100">Medical Opinion Results</h3>
                             {renderChartToggle(avizChartType, setAvizChartType)}
                         </div>
                         <div className="h-[300px]">
@@ -254,19 +258,19 @@ const StatisticsPage: React.FC = () => {
 
                     {/* Simple Summary Cards */}
                     <div className="col-span-1 md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                            <span className="block text-sm text-blue-600 font-medium">Total Files</span>
-                            <span className="block text-2xl font-bold text-blue-900">{photos.length}</span>
+                        <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
+                            <span className="block text-sm text-blue-600 dark:text-blue-400 font-medium">Total Files</span>
+                            <span className="block text-2xl font-bold text-blue-900 dark:text-blue-200">{photos.length}</span>
                         </div>
-                        <div className="bg-green-50 p-4 rounded-lg border border-green-100">
-                            <span className="block text-sm text-green-600 font-medium">FIT (APT)</span>
-                            <span className="block text-2xl font-bold text-green-900">
+                        <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-lg border border-green-100 dark:border-green-800">
+                            <span className="block text-sm text-green-600 dark:text-green-400 font-medium">FIT (APT)</span>
+                            <span className="block text-2xl font-bold text-green-900 dark:text-green-200">
                                 {avizData.find(d => d.name === 'APT')?.value || 0}
                             </span>
                         </div>
-                        <div className="bg-orange-50 p-4 rounded-lg border border-orange-100">
-                            <span className="block text-sm text-orange-600 font-medium">Periodic Checks</span>
-                            <span className="block text-2xl font-bold text-orange-900">
+                        <div className="bg-orange-50 dark:bg-orange-900/30 p-4 rounded-lg border border-orange-100 dark:border-orange-800">
+                            <span className="block text-sm text-orange-600 dark:text-orange-400 font-medium">Periodic Checks</span>
+                            <span className="block text-2xl font-bold text-orange-900 dark:text-orange-200">
                                 {controlData.find(d => d.name === 'Periodic')?.value || 0}
                             </span>
                         </div>

@@ -16,8 +16,8 @@ const DeviceCard: React.FC<DeviceCardProps> = ({
   onStopLiveClick = () => console.log(`Stop Live clicked for device ${deviceId}`),
 }) => {
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all hover:shadow-lg p-4">
-      <h3 className="text-lg font-medium text-gray-800 mb-4">{deviceId} - {deviceName}</h3>
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden transition-all hover:shadow-lg p-4">
+      <h3 className="text-lg font-medium text-gray-800 dark:text-gray-100 mb-4">{deviceId} - {deviceName}</h3>
       <div className="flex gap-2 flex-wrap">
         <button
           onClick={onCaptureClick}

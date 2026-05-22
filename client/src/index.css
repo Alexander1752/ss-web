@@ -4,6 +4,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Enable class-based dark mode for Tailwind v4 */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @keyframes scaleIn {
   0% {
     opacity: 0;

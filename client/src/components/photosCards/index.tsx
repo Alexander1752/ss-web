@@ -54,7 +54,7 @@ const PhotoCard: React.FC<PhotoCardProps> = ({
 
   return (
     <>
-      <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all hover:shadow-lg relative">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden transition-all hover:shadow-lg relative">
         <div className="relative h-48 cursor-pointer" onClick={toggleZoom}>
           <img
             src={imageError ? fallbackImage : imageUrl}
@@ -76,20 +76,20 @@ const PhotoCard: React.FC<PhotoCardProps> = ({
         </div>
 
         {extractedText && (
-          <div className="p-3 border-t border-gray-100">
-            <p className="text-sm text-gray-600 truncate">{extractedText}</p>
+          <div className="p-3 border-t border-gray-100 dark:border-gray-700">
+            <p className="text-sm text-gray-600 dark:text-gray-300 truncate">{extractedText}</p>
           </div>
         )}
 
         {/* Delete confirmation dialog */}
         {showDeleteConfirm && (
           <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-white rounded-lg p-4 m-4 shadow-xl">
-              <p className="text-gray-800 mb-4">Delete this photo?</p>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 m-4 shadow-xl">
+              <p className="text-gray-800 dark:text-gray-100 mb-4">Delete this photo?</p>
               <div className="flex gap-2 justify-center">
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
-                  className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded-md transition-colors"
+                  className="px-4 py-2 bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-100 rounded-md transition-colors"
                   disabled={isDeleting}
                 >
                   Cancel
@@ -114,7 +114,7 @@ const PhotoCard: React.FC<PhotoCardProps> = ({
           onClick={handleModalClick}
         >
           <div
-            className="relative bg-white rounded-xl shadow-2xl max-w-4xl max-h-[90vh] overflow-hidden transform transition-all duration-300 ease-in-out animate-scaleIn"
+            className="relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-4xl max-h-[90vh] overflow-hidden transform transition-all duration-300 ease-in-out animate-scaleIn"
           >
             <div className="absolute top-0 right-0 left-0 bg-gradient-to-b from-black/50 to-transparent h-20 z-10 flex justify-between items-start p-4">
               <div className="text-white text-lg font-medium truncate pr-10">{altText}</div>
@@ -137,9 +137,9 @@ const PhotoCard: React.FC<PhotoCardProps> = ({
             </div>
 
             {extractedText && (
-              <div className="bg-gray-50 p-6 border-t border-gray-100">
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Extracted Text</h3>
-                <p className="text-gray-800 text-base">{extractedText}</p>
+              <div className="bg-gray-50 dark:bg-gray-800 p-6 border-t border-gray-100 dark:border-gray-700">
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Extracted Text</h3>
+                <p className="text-gray-800 dark:text-gray-200 text-base">{extractedText}</p>
               </div>
             )}
           </div>
@@ -149,4 +149,4 @@ const PhotoCard: React.FC<PhotoCardProps> = ({
   );
 };
 
-export default PhotoCard; 
+export default PhotoCard;
