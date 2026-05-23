@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"go.uber.org/mock/gomock"
+	"go.mongodb.org/mongo-driver/mongo"
+	"golang.org/x/crypto/bcrypt"
 
 	"mqtt-streaming-server/domain"
 	mock_domain "mqtt-streaming-server/mocks"
@@ -33,7 +35,7 @@ func TestUserController_Register(t *testing.T) {
 		{
 			name:           "user already exists",
 			inputBody:      `{"email": "test@example.com", "password": "securepass"}`,
-			mockSaveReturn: errors.New("user already exists"), // Simulate existing user
+			mockSaveReturn: errors.New("user already exists"),
 			expectedStatus: http.StatusConflict,
 			expectedUser: &domain.User{
 				Email: "test@example.com",
@@ -42,7 +44,7 @@ func TestUserController_Register(t *testing.T) {
 		{
 			name:           "invalid JSON",
 			inputBody:      `invalid-json`,
-			mockSaveReturn: nil, // Save won't be called
+			mockSaveReturn: nil,
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
@@ -81,6 +83,61 @@ func TestUserController_Register(t *testing.T) {
 	}
 }
 
+func TestUserController_Register_FindByEmailError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mock_domain.NewMockUserRepository(ctrl)
+	ctlr := routes.UserController{UserRepository: mockRepo}
+
+	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(`{"email":"test@example.com","password":"securepass"}`))
+	rr := httptest.NewRecorder()
+
+	mockRepo.EXPECT().FindByEmail(gomock.Any(), "test@example.com").Return(nil, errors.New("db failure"))
+
+	ctlr.Register(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "Failed to check existing user") {
+		t.Fatalf("expected find error message, got %q", rr.Body.String())
+	}
+}
+
+func TestUserController_Register_AllowsMongoNoDocumentsAndHashesPassword(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mock_domain.NewMockUserRepository(ctrl)
+	ctlr := routes.UserController{UserRepository: mockRepo}
+
+	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(`{"email":"new@example.com","password":"plain-pass"}`))
+	rr := httptest.NewRecorder()
+
+	mockRepo.EXPECT().FindByEmail(gomock.Any(), "new@example.com").Return(nil, mongo.ErrNoDocuments)
+	mockRepo.EXPECT().Save(gomock.Any(), "new@example.com", gomock.Any()).DoAndReturn(
+		func(_ context.Context, _ string, savedPassword string) error {
+			if savedPassword == "plain-pass" {
+				t.Fatalf("password should be hashed, plain text was saved")
+			}
+			if err := bcrypt.CompareHashAndPassword([]byte(savedPassword), []byte("plain-pass")); err != nil {
+				t.Fatalf("saved password is not a valid bcrypt hash for input password: %v", err)
+			}
+			return nil
+		},
+	)
+
+	ctlr.Register(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d", http.StatusCreated, rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "User registered successfully") {
+		t.Fatalf("expected success message, got %q", rr.Body.String())
+	}
+}
+
 func TestUserController_Login(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -88,7 +145,7 @@ func TestUserController_Login(t *testing.T) {
 		mockUser         *domain.User
 		mockError        error
 		expectedStatus   int
-		expectedContains string // optional: check part of response
+		expectedContains string
 	}{
 		{
 			name:      "successful login",
@@ -145,6 +202,15 @@ func TestUserController_Login(t *testing.T) {
 				t.Errorf("expected status %d, got %d", tt.expectedStatus, rr.Code)
 			}
 
+			if tt.expectedStatus == http.StatusOK {
+				if got := rr.Header().Get("Content-Type"); !strings.Contains(got, "application/json") {
+					t.Errorf("expected JSON content type, got %q", got)
+				}
+				if !strings.Contains(rr.Body.String(), "placeholder-token-implement-jwt") {
+					t.Errorf("expected placeholder token in response, got %q", rr.Body.String())
+				}
+			}
+
 			if tt.expectedContains != "" && !strings.Contains(rr.Body.String(), tt.expectedContains) {
 				t.Errorf("expected body to contain %q, got %q", tt.expectedContains, rr.Body.String())
 			}
@@ -188,13 +254,11 @@ func TestUserController_GetProfile(t *testing.T) {
 			mockRepo := mock_domain.NewMockUserRepository(ctrl)
 			ctlr := routes.UserController{UserRepository: mockRepo}
 
-			// Build request and context
 			req := httptest.NewRequest(http.MethodGet, "/profile", nil)
 			ctx := context.WithValue(req.Context(), "email", tt.userEmail)
 			req = req.WithContext(ctx)
 			rr := httptest.NewRecorder()
 
-			// Set expectation
 			if tt.userEmail != "" {
 				mockRepo.EXPECT().FindByEmail(gomock.Any(), tt.userEmail).Return(tt.mockUser, tt.mockError)
 			}
@@ -221,7 +285,6 @@ func TestUserController_GetProfile_Unauthorized(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/profile", nil)
 	rr := httptest.NewRecorder()
 
-	// No email in context
 	ctlr.GetProfile(rr, req)
 
 	if rr.Code != http.StatusUnauthorized {
@@ -239,7 +302,7 @@ func TestUserController_GetProfile_MethodNotAllowed(t *testing.T) {
 	mockRepo := mock_domain.NewMockUserRepository(ctrl)
 	ctlr := routes.UserController{UserRepository: mockRepo}
 
-	req := httptest.NewRequest(http.MethodPost, "/profile", nil) // Using POST instead of GET
+	req := httptest.NewRequest(http.MethodPost, "/profile", nil)
 	rr := httptest.NewRecorder()
 
 	ctlr.GetProfile(rr, req)
@@ -259,7 +322,7 @@ func TestUserController_Register_MethodNotAllowed(t *testing.T) {
 	mockRepo := mock_domain.NewMockUserRepository(ctrl)
 	ctlr := routes.UserController{UserRepository: mockRepo}
 
-	req := httptest.NewRequest(http.MethodGet, "/register", nil) // Using GET instead of POST
+	req := httptest.NewRequest(http.MethodGet, "/register", nil)
 	rr := httptest.NewRecorder()
 
 	ctlr.Register(rr, req)
@@ -279,7 +342,7 @@ func TestUserController_Login_MethodNotAllowed(t *testing.T) {
 	mockRepo := mock_domain.NewMockUserRepository(ctrl)
 	ctlr := routes.UserController{UserRepository: mockRepo}
 
-	req := httptest.NewRequest(http.MethodGet, "/login", nil) // Using GET instead of POST
+	req := httptest.NewRequest(http.MethodGet, "/login", nil)
 	rr := httptest.NewRecorder()
 
 	ctlr.Login(rr, req)
@@ -292,7 +355,6 @@ func TestUserController_Login_MethodNotAllowed(t *testing.T) {
 	}
 }
 
-// login is missing coverage compare hash password with the one in the database
 func TestUserController_Login_InvalidPassword(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -308,7 +370,7 @@ func TestUserController_Login_InvalidPassword(t *testing.T) {
 		FindByEmail(gomock.Any(), "example@example.com").
 		Return(&domain.User{
 			Email:    "example@example.com",
-			Password: "$2a$12$OZ5oYXEsFvcaaVh/nmgt.cknGSFzKVlr.wkrzyCl5rgHuAGGkhiS", // hashed password for "password123"
+			Password: "$2a$12$OZ5oYXEsFvcaaVh/nmgt.cknGSFzKVlr.wkrzyCl5rgHuAGGkhiS",
 		}, nil)
 	ctlr.Login(rr, req)
 	if rr.Code != http.StatusUnauthorized {
@@ -348,9 +410,7 @@ func FuzzUserController_Register(f *testing.F) {
 			Password string `json:"password"`
 		}
 
-		// Try parsing input to decide if it's a valid JSON
 		if err := json.Unmarshal([]byte(input), &parsed); err == nil {
-			// JSON is valid, simulate typical repo behavior
 			mockRepo.EXPECT().
 				FindByEmail(gomock.Any(), parsed.Email).
 				Return(nil, nil).
@@ -361,7 +421,6 @@ func FuzzUserController_Register(f *testing.F) {
 				Return(nil).
 				AnyTimes()
 		} else {
-			// JSON is invalid, we expect a bad request response
 			mockRepo.EXPECT().
 				FindByEmail(gomock.Any(), gomock.Any()).
 				Return(nil, nil).
@@ -372,10 +431,8 @@ func FuzzUserController_Register(f *testing.F) {
 				AnyTimes()
 		}
 
-		// Call the actual controller
 		ctlr.Register(rr, req)
 
-		// Ensure status code is within the valid HTTP range
 		if rr.Code < 100 || rr.Code > 599 {
 			t.Errorf("unexpected status code: %d for input: %q", rr.Code, input)
 		}

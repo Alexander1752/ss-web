@@ -8,6 +8,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/minio/minio-go/v7 v7.0.100
 	github.com/otiai10/gosseract/v2 v2.4.1
+	github.com/stretchr/testify v1.9.0
 	go.mongodb.org/mongo-driver v1.17.3
 	go.uber.org/mock v0.5.2
 	golang.org/x/crypto v0.46.0
