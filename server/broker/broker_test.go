@@ -1,23 +1,19 @@
-package broker
+package broker_test
 
 import (
-	"context"
-	"errors"
 	"testing"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	"mqtt-streaming-server/domain"
+	"mqtt-streaming-server/broker"
 )
 
 func TestBrokerHandler_RegisterDevice(t *testing.T) {
 	tests := []struct {
-		name string // description of this test case
-		// Named input parameters for receiver constructor.
-		db        *mongo.Database
-		// Named input parameters for target function.
-		msg mqtt.Message
+		name string
+		db   *mongo.Database
+		msg  mqtt.Message
 	}{
 		// TODO: Add test cases.
 	}

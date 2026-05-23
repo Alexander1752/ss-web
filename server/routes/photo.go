@@ -3,6 +3,7 @@ package routes
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -61,7 +62,8 @@ func (ctlr PhotoController) GetPhotos(w http.ResponseWriter, r *http.Request) {
 
 	photos, err := ctlr.Service.ListPhotos(r.Context(), startInt, endInt, text, deviceID)
 	if err != nil {
-		http.Error(w, "Failed to fetch photos: ", http.StatusInternalServerError)
+		fmt.Println("Error fetching photos:", err)
+		http.Error(w, "Failed to fetch photos", http.StatusInternalServerError)
 		return
 	}
 

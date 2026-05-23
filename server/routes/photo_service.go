@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"go.mongodb.org/mongo-driver/mongo"
+
 	"mqtt-streaming-server/domain"
 	"mqtt-streaming-server/utils"
 )
@@ -60,7 +62,10 @@ func (s *PhotoService) ListPhotos(ctx context.Context, startUnix, endUnix int64,
 func (s *PhotoService) DeletePhoto(ctx context.Context, id string) error {
 	photo, err := s.Repo.GetByID(ctx, id)
 	if err != nil {
-		return ErrPhotoNotFound
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return ErrPhotoNotFound
+		}
+		return err
 	}
 
 	if err := s.Repo.Delete(ctx, id); err != nil {

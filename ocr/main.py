@@ -48,10 +48,16 @@ def on_message(client, userdata, msg):
 
 client = mqtt.Client(client_id="ocr-service")
 
-if os.path.exists(CA_CERTS) and os.path.exists(CERTFILE) and os.path.exists(KEYFILE):
+tls_available = os.path.exists(CA_CERTS) and os.path.exists(CERTFILE) and os.path.exists(KEYFILE)
+
+if tls_available:
     client.tls_set(ca_certs=CA_CERTS, certfile=CERTFILE, keyfile=KEYFILE)
 else:
-    print("Warning: TLS certificates not found, attempting unencrypted connection")
+    if MQTT_PORT == 8883:
+        print("Error: TLS certificates not found but MQTT_PORT is 8883 (requires TLS). "
+              "Provide certificates or set MQTT_PORT=1883 for an unencrypted connection.")
+        exit(1)
+    print("Warning: TLS certificates not found, connecting without TLS")
 
 client.on_connect = on_connect
 client.on_message = on_message

@@ -6,6 +6,9 @@ Scanează un folder și trimite toate imaginile (PNG, JPG, JPEG) la serverul MQT
 Utilizare:
     python3 upload_folder.py /path/to/folder
     python3 upload_folder.py /path/to/folder --device-id medical-scanner-1
+
+Dependencies: paho-mqtt>=2.0 (uses CallbackAPIVersion.VERSION2)
+    pip install "paho-mqtt>=2.0"
 """
 
 import ssl
@@ -40,9 +43,10 @@ CLIENT_CERT = os.path.join(PROJECT_ROOT, "secrets", "client.crt")
 CLIENT_KEY  = os.path.join(PROJECT_ROOT, "secrets", "client.key")
 
 class ImageUploader:
-    def __init__(self, device_id, device_name):
+    def __init__(self, device_id, device_name, insecure=False):
         self.device_id = device_id
         self.device_name = device_name
+        self.insecure = insecure
         self.register_topic = f"register/{device_id}"
         self.photo_topic = f"ssproject/images/{device_id}"
         self.images_to_send = []
@@ -151,7 +155,8 @@ class ImageUploader:
             keyfile=CLIENT_KEY,
             tls_version=ssl.PROTOCOL_TLS_CLIENT,
         )
-        client.tls_insecure_set(True)  # dev certs: skip hostname verification
+        if self.insecure:
+            client.tls_insecure_set(True)  # skip hostname verification only when --insecure-skip-verify is passed
         
         try:
             client.connect(BROKER, PORT, 60)
@@ -189,10 +194,14 @@ Exemple de utilizare:
     parser.add_argument('--device-name',
                        default=DEFAULT_DEVICE_NAME,
                        help=f'Numele dispozitivului (default: {DEFAULT_DEVICE_NAME})')
+    parser.add_argument('--insecure-skip-verify',
+                       action='store_true',
+                       default=False,
+                       help='Skip TLS hostname verification (dev only, default: false)')
     
     args = parser.parse_args()
     
-    uploader = ImageUploader(args.device_id, args.device_name)
+    uploader = ImageUploader(args.device_id, args.device_name, insecure=args.insecure_skip_verify)
     uploader.upload_folder(args.folder)
 
 if __name__ == "__main__":
