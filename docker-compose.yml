@@ -129,6 +129,22 @@ services:
     networks:
       - broker
 
+  ocr-service:
+    build:
+      context: ./ocr
+      dockerfile: Dockerfile
+    restart: always
+    container_name: ocr-service
+    depends_on:
+      broker:
+        condition: service_started
+    networks:
+      - broker
+    volumes:
+      - ./secrets/ca.pem:/certs/ca.crt
+      - ./secrets/client.crt:/certs/client.crt
+      - ./secrets/client.key:/certs/client.key
+
   mongo-db:
     container_name: mongo-db
     restart: always
