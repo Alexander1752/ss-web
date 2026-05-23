@@ -162,8 +162,7 @@ func TestDeviceController_SwitchDeviceMode(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/devices/switch", nil)
 		rr := httptest.NewRecorder()
 
-			mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
-			ctlr := routes.DeviceController{Service: &routes.DeviceService{Repo: mockRepo}}
+		ctlr.SwitchDeviceMode(rr, req)
 
 		if rr.Code != http.StatusMethodNotAllowed {
 			t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
