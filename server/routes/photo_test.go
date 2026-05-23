@@ -175,6 +175,28 @@ func TestPhotoController_GetPhotos_InvalidTimestamp(t *testing.T) {
 	}
 }
 
+func TestPhotoController_GetPhotos_RepositoryError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mock_domain.NewMockPhotoRepository(ctrl)
+	ctlr := routes.PhotoController{Service: routes.NewPhotoService(mockRepo)}
+
+	mockRepo.EXPECT().GetPhotos(gomock.Any(), gomock.Any()).Return(nil, errors.New("db error"))
+
+	req := httptest.NewRequest(http.MethodGet, "/photos", nil)
+	rr := httptest.NewRecorder()
+
+	ctlr.GetPhotos(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "Failed to fetch photos") {
+		t.Fatalf("expected fetch error body, got %q", rr.Body.String())
+	}
+}
+
 func TestPhotoController_DeletePhoto_MethodNotAllowed(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
