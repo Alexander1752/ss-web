@@ -11,7 +11,6 @@ import (
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/otiai10/gosseract/v2"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
@@ -44,10 +43,7 @@ func main() {
 
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
-	ocrClient := gosseract.NewClient()
-	ocrClient.SetLanguage("eng", "ron")
-	defer ocrClient.Close()
-	brokerHandler := broker.NewBrokerHandler(db, ocrClient)
+	brokerHandler := broker.NewBrokerHandler(db)
 
 	clientCert, err := tls.LoadX509KeyPair("/certs/client.crt", "/certs/client.key")
 	if err != nil {
@@ -74,6 +70,11 @@ func main() {
 
 	// Subscribe to images topic
 	if token := client.Subscribe("ssproject/images/#", 0, brokerHandler.HandlePhoto); token.Wait() && token.Error() != nil {
+		fmt.Println(token.Error())
+		os.Exit(1)
+	}
+
+	if token := client.Subscribe("ssproject/ocr/results", 0, brokerHandler.HandleOCRResult); token.Wait() && token.Error() != nil {
 		fmt.Println(token.Error())
 		os.Exit(1)
 	}

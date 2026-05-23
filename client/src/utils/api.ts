@@ -1,5 +1,3 @@
-const DEFAULT_BASE_URL = 'http://127.0.0.1:8080';
-
 export const normalize = (url: string) => url.replace(/\/+$/, '');
 
 export const API_BASE_URL = normalize("/api");

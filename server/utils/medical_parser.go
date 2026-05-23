@@ -245,6 +245,7 @@ func ParseMedicalCertificate(ocrText string) *MedicalData {
 		
 		aptIdx := -1
 		aptCondIdx := -1
+		aptCondEndIdx := -1
 		inaptTempIdx := -1
 		inaptIdx := -1
 		
@@ -273,6 +274,7 @@ func ParseMedicalCertificate(ocrText string) *MedicalData {
 			// We want the start of the word CONDITIONAT, but check if APT precedes it
 			// Actually, just finding CONDITIONAT is enough for the End boundary of the gap
 			aptCondIdx = loc[0]
+			aptCondEndIdx = loc[1]
 		}
 		
 		if aptIdx != -1 && aptCondIdx != -1 && aptIdx < aptCondIdx {
@@ -290,11 +292,11 @@ func ParseMedicalCertificate(ocrText string) *MedicalData {
 			inaptTempIdx = loc[0]
 		}
 		
-		if aptCondIdx != -1 {
+		if aptCondEndIdx != -1 {
 			end := inaptTempIdx
 			if end == -1 { end = len(avizText) } // Fallback
-			if end > aptCondIdx {
-				gap := avizText[aptCondIdx+len("APT CONDITIONAT") : end]
+			if end > aptCondEndIdx {
+				gap := avizText[aptCondEndIdx : end]
 				emptyBoxRegex := regexp.MustCompile(`\[\s*[\[\]\-\|]?\s*\]`)
 				data.AvizAptConditionat = !emptyBoxRegex.MatchString(gap)
 			}

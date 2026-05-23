@@ -21,6 +21,7 @@ const AuthContext = createContext<AuthContextType>({
   register: () => {},
 });
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);
 
 const keycloak = new Keycloak({

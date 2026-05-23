@@ -107,41 +107,43 @@ const PhotoCard: React.FC<PhotoCardProps> = ({
         )}
       </div>
 
-      {/* Improved zoom modal overlay with animations and better styling */}
+      {/* Zoom modal */}
       {isZoomed && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300 ease-in-out"
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem' }}
           onClick={handleModalClick}
         >
           <div
-            className="relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-4xl max-h-[90vh] overflow-hidden transform transition-all duration-300 ease-in-out animate-scaleIn"
+            className="bg-white dark:bg-gray-900"
+            style={{ borderRadius: '12px', width: '100%', maxWidth: '56rem', height: 'calc(100vh - 2rem)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
           >
-            <div className="absolute top-0 right-0 left-0 bg-gradient-to-b from-black/50 to-transparent h-20 z-10 flex justify-between items-start p-4">
-              <div className="text-white text-lg font-medium truncate pr-10">{altText}</div>
-              <button
-                className="bg-white/20 hover:bg-white/40 text-white rounded-full p-2 backdrop-blur-sm transition-all duration-200"
-                onClick={toggleZoom}
-              >
+            {/* Header */}
+            <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', borderBottom: '1px solid rgba(128,128,128,0.3)' }}>
+              <span className="text-gray-900 dark:text-gray-100 font-medium truncate" style={{ paddingRight: '1rem' }}>{altText}</span>
+              <button onClick={toggleZoom} className="flex-shrink-0 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            <div className="p-4 pt-20">
-              <img
-                src={imageError ? fallbackImage : imageUrl}
-                alt={altText}
-                className="max-w-full max-h-[65vh] object-contain mx-auto rounded-md"
-              />
-            </div>
-
-            {extractedText && (
-              <div className="bg-gray-50 dark:bg-gray-800 p-6 border-t border-gray-100 dark:border-gray-700">
-                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Extracted Text</h3>
-                <p className="text-gray-800 dark:text-gray-200 text-base">{extractedText}</p>
+            {/* Scrollable body */}
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+              <div style={{ padding: '1rem' }}>
+                <img
+                  src={imageError ? fallbackImage : imageUrl}
+                  alt={altText}
+                  onError={handleImageError}
+                  style={{ maxWidth: '100%', display: 'block', margin: '0 auto', borderRadius: '8px' }}
+                />
               </div>
-            )}
+              {extractedText && (
+                <div className="bg-gray-50 dark:bg-gray-800" style={{ padding: '1.5rem', borderTop: '1px solid rgba(128,128,128,0.2)' }}>
+                  <h3 className="text-gray-500 dark:text-gray-400" style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Extracted Text</h3>
+                  <p className="text-gray-800 dark:text-gray-200" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{extractedText}</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

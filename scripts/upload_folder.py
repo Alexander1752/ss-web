@@ -6,21 +6,25 @@ Scanează un folder și trimite toate imaginile (PNG, JPG, JPEG) la serverul MQT
 Utilizare:
     python3 upload_folder.py /path/to/folder
     python3 upload_folder.py /path/to/folder --device-id medical-scanner-1
+
+Dependencies: paho-mqtt>=2.0 (uses CallbackAPIVersion.VERSION2)
+    pip install "paho-mqtt>=2.0"
 """
 
-# TODO: Implement mTLS security - See docs/SECURITY_IMPLEMENTATION.md
+import ssl
 import time
 import os
 import socket
 import json
 import paho.mqtt.client as mqtt
+from paho.mqtt.enums import CallbackAPIVersion
 import sys
 import argparse
 from pathlib import Path
 
 # Configuration
 BROKER = "127.0.0.1"
-PORT = 1883  # Plain MQTT (use 8883 for mTLS)
+PORT = 8883
 
 # Default device info
 DEFAULT_DEVICE_ID = "folder-uploader"
@@ -33,12 +37,18 @@ SUPPORTED_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.PNG', '.JPG', '.JPEG'}
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 
+# mTLS certificates
+CA_CERT     = os.path.join(PROJECT_ROOT, "secrets", "ca.pem")
+CLIENT_CERT = os.path.join(PROJECT_ROOT, "secrets", "client.crt")
+CLIENT_KEY  = os.path.join(PROJECT_ROOT, "secrets", "client.key")
+
 class ImageUploader:
-    def __init__(self, device_id, device_name):
+    def __init__(self, device_id, device_name, insecure=False):
         self.device_id = device_id
         self.device_name = device_name
+        self.insecure = insecure
         self.register_topic = f"register/{device_id}"
-        self.photo_topic = f"photos/{device_id}"
+        self.photo_topic = f"ssproject/images/{device_id}"
         self.images_to_send = []
         self.current_index = 0
         self.connected = False
@@ -55,8 +65,8 @@ class ImageUploader:
         except:
             return "unknown"
     
-    def on_connect(self, client, userdata, flags, rc):
-        if rc == 0:
+    def on_connect(self, client, userdata, flags, reason_code, properties):
+        if reason_code == 0:
             print(f"✓ Conectat la MQTT Broker ({BROKER}:{PORT})")
             self.connected = True
             
@@ -75,10 +85,10 @@ class ImageUploader:
             # Start sending images
             self.send_next_image(client)
         else:
-            print(f"✗ Eroare conexiune, cod: {rc}")
+            print(f"✗ Eroare conexiune, cod: {reason_code}")
             sys.exit(1)
     
-    def on_publish(self, client, userdata, mid):
+    def on_publish(self, client, userdata, mid, reason_code=None, properties=None):
         # Send next image after current one is published
         time.sleep(0.3)  # Small delay between images
         self.send_next_image(client)
@@ -134,14 +144,19 @@ class ImageUploader:
         print("Se încarcă imaginile...\n")
         
         # Create MQTT client
-        client = mqtt.Client(client_id=self.device_id)
+        client = mqtt.Client(CallbackAPIVersion.VERSION2, client_id=self.device_id)
         client.on_connect = self.on_connect
         client.on_publish = self.on_publish
-        
-        # TODO: For mTLS, uncomment and configure:
-        # client.tls_set(ca_certs=CA_CRT, certfile=CLIENT_CRT, keyfile=CLIENT_KEY, 
-        #               tls_version=ssl.PROTOCOL_TLSv1_2)
-        # client.tls_insecure_set(True)
+
+        # mTLS
+        client.tls_set(
+            ca_certs=CA_CERT,
+            certfile=CLIENT_CERT,
+            keyfile=CLIENT_KEY,
+            tls_version=ssl.PROTOCOL_TLS_CLIENT,
+        )
+        if self.insecure:
+            client.tls_insecure_set(True)  # skip hostname verification only when --insecure-skip-verify is passed
         
         try:
             client.connect(BROKER, PORT, 60)
@@ -179,10 +194,14 @@ Exemple de utilizare:
     parser.add_argument('--device-name',
                        default=DEFAULT_DEVICE_NAME,
                        help=f'Numele dispozitivului (default: {DEFAULT_DEVICE_NAME})')
+    parser.add_argument('--insecure-skip-verify',
+                       action='store_true',
+                       default=False,
+                       help='Skip TLS hostname verification (dev only, default: false)')
     
     args = parser.parse_args()
     
-    uploader = ImageUploader(args.device_id, args.device_name)
+    uploader = ImageUploader(args.device_id, args.device_name, insecure=args.insecure_skip_verify)
     uploader.upload_folder(args.folder)
 
 if __name__ == "__main__":

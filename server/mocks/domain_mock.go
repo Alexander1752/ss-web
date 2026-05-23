@@ -14,6 +14,7 @@ import (
 	domain "mqtt-streaming-server/domain"
 	reflect "reflect"
 
+	primitive "go.mongodb.org/mongo-driver/bson/primitive"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -153,21 +154,6 @@ func (mr *MockPhotoRepositoryMockRecorder) GetPhotos(ctx, filters any) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPhotos", reflect.TypeOf((*MockPhotoRepository)(nil).GetPhotos), ctx, filters)
 }
 
-// GetByID mocks base method.
-func (m *MockPhotoRepository) GetByID(ctx context.Context, id string) (*domain.Photo, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetByID", ctx, id)
-	ret0, _ := ret[0].(*domain.Photo)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetByID indicates an expected call of GetByID.
-func (mr *MockPhotoRepositoryMockRecorder) GetByID(ctx, id any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByID", reflect.TypeOf((*MockPhotoRepository)(nil).GetByID), ctx, id)
-}
-
 // Save mocks base method.
 func (m *MockPhotoRepository) Save(ctx context.Context, photo *domain.Photo) error {
 	m.ctrl.T.Helper()
@@ -182,33 +168,18 @@ func (mr *MockPhotoRepositoryMockRecorder) Save(ctx, photo any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockPhotoRepository)(nil).Save), ctx, photo)
 }
 
-// Delete mocks base method.
-func (m *MockPhotoRepository) Delete(ctx context.Context, id string) error {
+// UpdatePhotoTextAndMedicalData mocks base method.
+func (m *MockPhotoRepository) UpdatePhotoTextAndMedicalData(ctx context.Context, id primitive.ObjectID, updates map[string]any) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Delete", ctx, id)
+	ret := m.ctrl.Call(m, "UpdatePhotoTextAndMedicalData", ctx, id, updates)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// Delete indicates an expected call of Delete.
-func (mr *MockPhotoRepositoryMockRecorder) Delete(ctx, id any) *gomock.Call {
+// UpdatePhotoTextAndMedicalData indicates an expected call of UpdatePhotoTextAndMedicalData.
+func (mr *MockPhotoRepositoryMockRecorder) UpdatePhotoTextAndMedicalData(ctx, id, updates any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockPhotoRepository)(nil).Delete), ctx, id)
-}
-
-// DeleteAll mocks base method.
-func (m *MockPhotoRepository) DeleteAll(ctx context.Context) (int64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteAll", ctx)
-	ret0, _ := ret[0].(int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DeleteAll indicates an expected call of DeleteAll.
-func (mr *MockPhotoRepositoryMockRecorder) DeleteAll(ctx any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAll", reflect.TypeOf((*MockPhotoRepository)(nil).DeleteAll), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdatePhotoTextAndMedicalData", reflect.TypeOf((*MockPhotoRepository)(nil).UpdatePhotoTextAndMedicalData), ctx, id, updates)
 }
 
 // MockDeviceRepository is a mock of DeviceRepository interface.

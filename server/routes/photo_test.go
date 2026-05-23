@@ -26,7 +26,7 @@ func TestPhotoController_GetPhotos(t *testing.T) {
 		defer ctrl.Finish()
 
 		mockRepo := mock_domain.NewMockPhotoRepository(ctrl)
-		ctlr := routes.PhotoController{PhotoRepository: mockRepo}
+		ctlr := routes.PhotoController{Service: &routes.PhotoService{Repo: mockRepo}}
 
 		var capturedFilters map[string]any
 		mockRepo.EXPECT().
@@ -144,7 +144,7 @@ func TestPhotoController_GetPhotos_MethodNotAllowed(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockRepo := mock_domain.NewMockPhotoRepository(ctrl)
-	ctlr := routes.PhotoController{PhotoRepository: mockRepo}
+	ctlr := routes.PhotoController{Service: &routes.PhotoService{Repo: mockRepo}}
 
 	req := httptest.NewRequest(http.MethodPost, "/photos", nil)
 	rr := httptest.NewRecorder()
@@ -164,7 +164,7 @@ func TestPhotoController_GetPhotos_InvalidTimestamp(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockRepo := mock_domain.NewMockPhotoRepository(ctrl)
-	ctlr := routes.PhotoController{PhotoRepository: mockRepo}
+	ctlr := routes.PhotoController{Service: &routes.PhotoService{Repo: mockRepo}}
 
 	req := httptest.NewRequest(http.MethodGet, "/photos?start=invalid&end=invalid", nil)
 	rr := httptest.NewRecorder()

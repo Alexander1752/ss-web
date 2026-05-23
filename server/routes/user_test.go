@@ -61,7 +61,7 @@ func TestUserController_Register(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockRepo := mock_domain.NewMockUserRepository(ctrl)
-			ctlr := routes.UserController{UserRepository: mockRepo}
+			ctlr := routes.UserController{Service: &routes.UserService{Repo: mockRepo}}
 
 			req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(tt.inputBody))
 			req.Header.Set("Content-Type", "application/json")
@@ -186,7 +186,7 @@ func TestUserController_Login(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockRepo := mock_domain.NewMockUserRepository(ctrl)
-			ctlr := routes.UserController{UserRepository: mockRepo}
+			ctlr := routes.UserController{Service: &routes.UserService{Repo: mockRepo}}
 
 			req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(tt.inputBody))
 			req.Header.Set("Content-Type", "application/json")
@@ -252,7 +252,7 @@ func TestUserController_GetProfile(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockRepo := mock_domain.NewMockUserRepository(ctrl)
-			ctlr := routes.UserController{UserRepository: mockRepo}
+			ctlr := routes.UserController{Service: &routes.UserService{Repo: mockRepo}}
 
 			req := httptest.NewRequest(http.MethodGet, "/profile", nil)
 			ctx := context.WithValue(req.Context(), "email", tt.userEmail)
@@ -280,7 +280,7 @@ func TestUserController_GetProfile_Unauthorized(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockRepo := mock_domain.NewMockUserRepository(ctrl)
-	ctlr := routes.UserController{UserRepository: mockRepo}
+	ctlr := routes.UserController{Service: &routes.UserService{Repo: mockRepo}}
 
 	req := httptest.NewRequest(http.MethodGet, "/profile", nil)
 	rr := httptest.NewRecorder()
@@ -300,7 +300,7 @@ func TestUserController_GetProfile_MethodNotAllowed(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockRepo := mock_domain.NewMockUserRepository(ctrl)
-	ctlr := routes.UserController{UserRepository: mockRepo}
+	ctlr := routes.UserController{Service: &routes.UserService{Repo: mockRepo}}
 
 	req := httptest.NewRequest(http.MethodPost, "/profile", nil)
 	rr := httptest.NewRecorder()
@@ -320,7 +320,7 @@ func TestUserController_Register_MethodNotAllowed(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockRepo := mock_domain.NewMockUserRepository(ctrl)
-	ctlr := routes.UserController{UserRepository: mockRepo}
+	ctlr := routes.UserController{Service: &routes.UserService{Repo: mockRepo}}
 
 	req := httptest.NewRequest(http.MethodGet, "/register", nil)
 	rr := httptest.NewRecorder()
@@ -340,7 +340,7 @@ func TestUserController_Login_MethodNotAllowed(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockRepo := mock_domain.NewMockUserRepository(ctrl)
-	ctlr := routes.UserController{UserRepository: mockRepo}
+	ctlr := routes.UserController{Service: &routes.UserService{Repo: mockRepo}}
 
 	req := httptest.NewRequest(http.MethodGet, "/login", nil)
 	rr := httptest.NewRecorder()
@@ -360,7 +360,7 @@ func TestUserController_Login_InvalidPassword(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockRepo := mock_domain.NewMockUserRepository(ctrl)
-	ctlr := routes.UserController{UserRepository: mockRepo}
+	ctlr := routes.UserController{Service: &routes.UserService{Repo: mockRepo}}
 
 	req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(`{"email": "example@example.com", "password": "wrongpassword"}`))
 	ctx := context.WithValue(req.Context(), "email", "example@example.com")
@@ -399,7 +399,7 @@ func FuzzUserController_Register(f *testing.F) {
 		defer ctrl.Finish()
 
 		mockRepo := mock_domain.NewMockUserRepository(ctrl)
-		ctlr := routes.UserController{UserRepository: mockRepo}
+		ctlr := routes.UserController{Service: &routes.UserService{Repo: mockRepo}}
 
 		req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(input))
 		req.Header.Set("Content-Type", "application/json")

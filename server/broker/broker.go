@@ -3,6 +3,7 @@ package broker
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -11,8 +12,8 @@ import (
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/otiai10/gosseract/v2"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"mqtt-streaming-server/domain"
 	"mqtt-streaming-server/repository"
@@ -22,18 +23,16 @@ import (
 type BrokerHandler struct {
 	photoRepository  domain.PhotoRepository
 	deviceRepository domain.DeviceRepository
-	ocrClient        *gosseract.Client
 }
 
-func NewBrokerHandler(db *mongo.Database, ocrClient *gosseract.Client) BrokerHandler {
+func NewBrokerHandler(db *mongo.Database) BrokerHandler {
 	return BrokerHandler{
 		photoRepository:  repository.NewPhotoRepository(db),
 		deviceRepository: repository.NewDeviceRepository(db),
-		ocrClient:        ocrClient,
 	}
 }
 
-func (b BrokerHandler) HandlePhoto(_ mqtt.Client, msg mqtt.Message) {
+func (b BrokerHandler) HandlePhoto(client mqtt.Client, msg mqtt.Message) {
 	topic := msg.Topic()
 	var deviceID string
 	// topic is ssproject/images/device_id or just ssproject/images
@@ -78,26 +77,13 @@ func (b BrokerHandler) HandlePhoto(_ mqtt.Client, msg mqtt.Message) {
 	}
 	fmt.Printf("Image type: %s\n", imageType)
 
-	// Extract text from image
-	text, err := b.extractTextFromImage(body)
-	if err != nil {
-		fmt.Printf("Failed to extract text from image: %v\n", err)
-		text = "OCR failed"
-	}
-
-	// Try to extract structured medical data
-	var medicalData *utils.MedicalData
-	if utils.IsMedicalCertificate(text) {
-		medicalData = utils.ParseMedicalCertificate(text)
-		if medicalData != nil {
-			fmt.Printf("Extracted medical data: %+v\n", medicalData)
-		}
-	}
-
 	// UTC timestamp
 	timestamp := time.Now().UTC()
 
-	// Create photo with flattened medical data
+	// Initial placeholder for Text before OCR completes
+	text := "OCR processing..."
+
+	// Create photo with basic data
 	photo := &domain.Photo{
 		ImageType: imageType,
 		Timestamp: timestamp,
@@ -105,44 +91,29 @@ func (b BrokerHandler) HandlePhoto(_ mqtt.Client, msg mqtt.Message) {
 		Text:      text,
 	}
 
-	// Copy medical data fields directly to photo (flattened)
-	if medicalData != nil {
-		photo.UnitateMedicala = medicalData.UnitateMedicala
-		photo.AdresaUnitateMedicala = medicalData.AdresaUnitateMedicala
-		photo.TelefonUnitateMedicala = medicalData.TelefonUnitateMedicala
-		photo.NumarFisa = medicalData.NumarFisa
-		photo.SocietateUnitate = medicalData.SocietateUnitate
-		photo.AdresaAngajator = medicalData.AdresaAngajator
-		photo.TelefonAngajator = medicalData.TelefonAngajator
-		photo.Nume = medicalData.Nume
-		photo.Prenume = medicalData.Prenume
-		photo.CNP = medicalData.CNP
-		photo.ProfesieFunctie = medicalData.ProfesieFunctie
-		photo.LocDeMunca = medicalData.LocDeMunca
-		photo.TipControl = medicalData.TipControl
-		photo.ControlAngajare = medicalData.ControlAngajare
-		photo.ControlPeriodic = medicalData.ControlPeriodic
-		photo.ControlAdaptare = medicalData.ControlAdaptare
-		photo.ControlReluare = medicalData.ControlReluare
-		photo.ControlSupraveghere = medicalData.ControlSupraveghere
-		photo.ControlAlte = medicalData.ControlAlte
-
-		photo.AvizMedical = medicalData.AvizMedical
-		photo.AvizApt = medicalData.AvizApt
-		photo.AvizAptConditionat = medicalData.AvizAptConditionat
-		photo.AvizInaptTemporar = medicalData.AvizInaptTemporar
-		photo.AvizInapt = medicalData.AvizInapt
-
-		photo.Recomandari = medicalData.Recomandari
-		photo.Data = medicalData.Data
-		photo.DataUrmExaminari = medicalData.DataUrmExaminari
-	}
-
 	err = b.photoRepository.Save(ctx, photo)
 	if err != nil {
 		fmt.Printf("Failed to insert photo into MongoDB: %v\n", err)
 		return
 	}
+
+	// Publish to OCR service
+	ocrReq := map[string]string{
+		"photo_id":     photo.ID.Hex(),
+		"image_base64": base64.StdEncoding.EncodeToString(body),
+	}
+	reqBody, _ := json.Marshal(ocrReq)
+	token := client.Publish("ssproject/ocr/requests", 0, false, reqBody)
+	if !token.WaitTimeout(5 * time.Second) {
+		fmt.Printf("Timed out publishing OCR request for photo %s\n", photo.ID.Hex())
+		return
+	}
+	if err := token.Error(); err != nil {
+		fmt.Printf("Failed to publish OCR request for photo %s: %v\n", photo.ID.Hex(), err)
+		return
+	}
+	fmt.Printf("Sent OCR request for photo %s\n", photo.ID.Hex())
+
 	// Save photo object to MinIO
 	keyName := fmt.Sprintf("photos/%d.%s", timestamp.Unix(), imageType)
 	if err := utils.SaveToMinIO(body, keyName); err != nil {
@@ -150,6 +121,71 @@ func (b BrokerHandler) HandlePhoto(_ mqtt.Client, msg mqtt.Message) {
 		return
 	}
 	fmt.Printf("Photo saved to MinIO with key: %s\n", keyName)
+}
+
+func (b BrokerHandler) HandleOCRResult(_ mqtt.Client, msg mqtt.Message) {
+	fmt.Println("Received OCR result on topic:", msg.Topic())
+	var result struct {
+		PhotoID string `json:"photo_id"`
+		Text    string `json:"text"`
+	}
+	if err := json.Unmarshal(msg.Payload(), &result); err != nil {
+		fmt.Printf("Failed to unmarshal OCR result: %v\n", err)
+		return
+	}
+
+	ctx := context.Background()
+	objID, err := primitive.ObjectIDFromHex(result.PhotoID)
+	if err != nil {
+		fmt.Printf("Invalid PhotoID %s: %v\n", result.PhotoID, err)
+		return
+	}
+
+	updates := map[string]any{
+		"text": result.Text,
+	}
+
+	if utils.IsMedicalCertificate(result.Text) {
+		medicalData := utils.ParseMedicalCertificate(result.Text)
+		if medicalData != nil {
+			fmt.Printf("Extracted medical data for %s: %+v\n", result.PhotoID, medicalData)
+			updates["unitate_medicala"] = medicalData.UnitateMedicala
+			updates["adresa_unitate_medicala"] = medicalData.AdresaUnitateMedicala
+			updates["telefon_unitate_medicala"] = medicalData.TelefonUnitateMedicala
+			updates["numar_fisa"] = medicalData.NumarFisa
+			updates["societate_unitate"] = medicalData.SocietateUnitate
+			updates["adresa_angajator"] = medicalData.AdresaAngajator
+			updates["telefon_angajator"] = medicalData.TelefonAngajator
+			updates["nume"] = medicalData.Nume
+			updates["prenume"] = medicalData.Prenume
+			updates["cnp"] = medicalData.CNP
+			updates["profesie_functie"] = medicalData.ProfesieFunctie
+			updates["loc_de_munca"] = medicalData.LocDeMunca
+			updates["tip_control"] = medicalData.TipControl
+			updates["control_angajare"] = medicalData.ControlAngajare
+			updates["control_periodic"] = medicalData.ControlPeriodic
+			updates["control_adaptare"] = medicalData.ControlAdaptare
+			updates["control_reluare"] = medicalData.ControlReluare
+			updates["control_supraveghere"] = medicalData.ControlSupraveghere
+			updates["control_alte"] = medicalData.ControlAlte
+
+			updates["aviz_medical"] = medicalData.AvizMedical
+			updates["aviz_apt"] = medicalData.AvizApt
+			updates["aviz_apt_conditionat"] = medicalData.AvizAptConditionat
+			updates["aviz_inapt_temporar"] = medicalData.AvizInaptTemporar
+			updates["aviz_inapt"] = medicalData.AvizInapt
+
+			updates["recomandari"] = medicalData.Recomandari
+			updates["data"] = medicalData.Data
+			updates["data_urm_examinari"] = medicalData.DataUrmExaminari
+		}
+	}
+
+	if err := b.photoRepository.UpdatePhotoTextAndMedicalData(ctx, objID, updates); err != nil {
+		fmt.Printf("Failed to update photo OCR result: %v\n", err)
+	} else {
+		fmt.Printf("Successfully updated photo %s with OCR data\n", result.PhotoID)
+	}
 }
 
 func (b BrokerHandler) RegisterDevice(_ mqtt.Client, msg mqtt.Message) {
@@ -248,16 +284,6 @@ func (b BrokerHandler) DisconnectDevice(_ mqtt.Client, msg mqtt.Message) {
 		DeviceStatus: "inactive",
 		DeviceName:   device.DeviceName,
 	})
-}
-
-func (b BrokerHandler) extractTextFromImage(imageData []byte) (string, error) {
-	// Use the OCR client to extract text from the image
-	b.ocrClient.SetImageFromBytes(imageData)
-	text, err := b.ocrClient.Text()
-	if err != nil {
-		return "", fmt.Errorf("failed to extract text from image: %v", err)
-	}
-	return text, nil
 }
 
 func (b BrokerHandler) HandleCommand(_ mqtt.Client, msg mqtt.Message) {
