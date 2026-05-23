@@ -103,7 +103,15 @@ func (b BrokerHandler) HandlePhoto(client mqtt.Client, msg mqtt.Message) {
 		"image_base64": base64.StdEncoding.EncodeToString(body),
 	}
 	reqBody, _ := json.Marshal(ocrReq)
-	client.Publish("ssproject/ocr/requests", 0, false, reqBody)
+	token := client.Publish("ssproject/ocr/requests", 0, false, reqBody)
+	if !token.WaitTimeout(5 * time.Second) {
+		fmt.Printf("Timed out publishing OCR request for photo %s\n", photo.ID.Hex())
+		return
+	}
+	if err := token.Error(); err != nil {
+		fmt.Printf("Failed to publish OCR request for photo %s: %v\n", photo.ID.Hex(), err)
+		return
+	}
 	fmt.Printf("Sent OCR request for photo %s\n", photo.ID.Hex())
 
 	// Save photo object to MinIO
