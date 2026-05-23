@@ -17,6 +17,8 @@ import (
 // ErrUserAlreadyExists is returned when registering an email that is already in use.
 var ErrUserAlreadyExists = errors.New("user already exists")
 
+var errCheckExistingUser = errors.New("check existing user")
+
 // UserService contains the business logic for user operations.
 type UserService struct {
 	Repo domain.UserRepository
@@ -32,7 +34,7 @@ func NewUserService(repo domain.UserRepository) *UserService {
 func (s *UserService) Register(ctx context.Context, email, password string) error {
 	existing, err := s.Repo.FindByEmail(ctx, email)
 	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
-		return fmt.Errorf("check existing user: %w", err)
+		return fmt.Errorf("%w: %w", errCheckExistingUser, err)
 	}
 	if existing != nil {
 		return ErrUserAlreadyExists

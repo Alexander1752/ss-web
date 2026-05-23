@@ -90,7 +90,7 @@ func TestUserController_Register_FindByEmailError(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockRepo := mock_domain.NewMockUserRepository(ctrl)
-	ctlr := routes.UserController{UserRepository: mockRepo}
+	ctlr := routes.UserController{Service: routes.NewUserService(mockRepo)}
 
 	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(`{"email":"test@example.com","password":"securepass"}`))
 	rr := httptest.NewRecorder()
@@ -112,7 +112,7 @@ func TestUserController_Register_AllowsMongoNoDocumentsAndHashesPassword(t *test
 	defer ctrl.Finish()
 
 	mockRepo := mock_domain.NewMockUserRepository(ctrl)
-	ctlr := routes.UserController{UserRepository: mockRepo}
+	ctlr := routes.UserController{Service: routes.NewUserService(mockRepo)}
 
 	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(`{"email":"new@example.com","password":"plain-pass"}`))
 	rr := httptest.NewRecorder()

@@ -45,6 +45,8 @@ func (ctlr UserController) Register(w http.ResponseWriter, r *http.Request) {
 	if err := ctlr.Service.Register(r.Context(), req.Email, req.Password); err != nil {
 		if errors.Is(err, ErrUserAlreadyExists) {
 			http.Error(w, "User already exists", http.StatusConflict)
+		} else if errors.Is(err, errCheckExistingUser) {
+			http.Error(w, "Failed to check existing user", http.StatusInternalServerError)
 		} else {
 			http.Error(w, "Failed to save user", http.StatusInternalServerError)
 		}

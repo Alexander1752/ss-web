@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/mock/gomock"
 
 	"mqtt-streaming-server/domain"
@@ -68,7 +69,7 @@ func TestPhotoController_GetPhotos(t *testing.T) {
 		defer ctrl.Finish()
 
 		mockRepo := mock_domain.NewMockPhotoRepository(ctrl)
-		ctlr := routes.PhotoController{PhotoRepository: mockRepo}
+		ctlr := routes.PhotoController{Service: routes.NewPhotoService(mockRepo)}
 
 		t.Setenv("MINIO_ENDPOINT", "")
 
@@ -99,7 +100,7 @@ func TestPhotoController_GetPhotos(t *testing.T) {
 		defer ctrl.Finish()
 
 		mockRepo := mock_domain.NewMockPhotoRepository(ctrl)
-		ctlr := routes.PhotoController{PhotoRepository: mockRepo}
+		ctlr := routes.PhotoController{Service: routes.NewPhotoService(mockRepo)}
 
 		var capturedFilters map[string]any
 		mockRepo.EXPECT().GetPhotos(gomock.Any(), gomock.Any()).DoAndReturn(
@@ -179,7 +180,7 @@ func TestPhotoController_DeletePhoto_MethodNotAllowed(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockRepo := mock_domain.NewMockPhotoRepository(ctrl)
-	ctlr := routes.PhotoController{PhotoRepository: mockRepo}
+	ctlr := routes.PhotoController{Service: routes.NewPhotoService(mockRepo)}
 
 	req := httptest.NewRequest(http.MethodGet, "/photos/123", nil)
 	rr := httptest.NewRecorder()
@@ -196,7 +197,7 @@ func TestPhotoController_DeletePhoto_BadRequestsAndErrors(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockRepo := mock_domain.NewMockPhotoRepository(ctrl)
-	ctlr := routes.PhotoController{PhotoRepository: mockRepo}
+	ctlr := routes.PhotoController{Service: routes.NewPhotoService(mockRepo)}
 
 	req := httptest.NewRequest(http.MethodDelete, "/photos/", nil)
 	rr := httptest.NewRecorder()
@@ -205,7 +206,7 @@ func TestPhotoController_DeletePhoto_BadRequestsAndErrors(t *testing.T) {
 		t.Errorf("expected status %d for missing id, got %d", http.StatusBadRequest, rr.Code)
 	}
 
-	mockRepo.EXPECT().GetByID(gomock.Any(), "notfound").Return(nil, errors.New("not found"))
+	mockRepo.EXPECT().GetByID(gomock.Any(), "notfound").Return(nil, mongo.ErrNoDocuments)
 	req = httptest.NewRequest(http.MethodDelete, "/photos/notfound", nil)
 	rr = httptest.NewRecorder()
 	ctlr.DeletePhoto(rr, req)
@@ -229,7 +230,7 @@ func TestPhotoController_DeletePhoto_SuccessToleratesStorageDeleteFailure(t *tes
 	defer ctrl.Finish()
 
 	mockRepo := mock_domain.NewMockPhotoRepository(ctrl)
-	ctlr := routes.PhotoController{PhotoRepository: mockRepo}
+	ctlr := routes.PhotoController{Service: routes.NewPhotoService(mockRepo)}
 
 	timestamp := int64(1600000002)
 	imageType := "png"
@@ -258,7 +259,7 @@ func TestPhotoController_DeleteAllPhotos(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockRepo := mock_domain.NewMockPhotoRepository(ctrl)
-	ctlr := routes.PhotoController{PhotoRepository: mockRepo}
+	ctlr := routes.PhotoController{Service: routes.NewPhotoService(mockRepo)}
 
 	req := httptest.NewRequest(http.MethodGet, "/photos/all", nil)
 	rr := httptest.NewRecorder()
