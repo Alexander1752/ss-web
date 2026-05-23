@@ -51,14 +51,6 @@ func (repo *photoRepository) GetPhotos(ctx context.Context, filters map[string]a
 
 func (repo *photoRepository) Save(ctx context.Context, photo *domain.Photo) error {
 	collection := repo.db.Collection("photos")
-<<<<<<< HEAD
-	_, err := collection.InsertOne(ctx, photo)
-	if err != nil {
-		log.Printf("Save: InsertOne error: %v", err)
-		return fmt.Errorf("Save: InsertOne error: %w", err)
-	}
-	return nil
-=======
 	res, err := collection.InsertOne(ctx, photo)
 	if err == nil {
 		if oid, ok := res.InsertedID.(primitive.ObjectID); ok {
@@ -72,7 +64,6 @@ func (repo *photoRepository) UpdatePhotoTextAndMedicalData(ctx context.Context, 
 	collection := repo.db.Collection("photos")
 	_, err := collection.UpdateOne(ctx, map[string]any{"_id": id}, map[string]any{"$set": updates})
 	return err
->>>>>>> ce1de12 (Created a sepparate service for ocr)
 }
 
 func (r *photoRepository) GetByID(ctx context.Context, id string) (*domain.Photo, error) {
