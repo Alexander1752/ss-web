@@ -1,0 +1,11 @@
+============================================================
+Keycloak baseline run
+Label:         optimized-v1
+Timestamp:     20260419-215131
+Compose:       -f docker-compose.yml -f docker-compose.optimized.yml
+Service:       keycloak
+Health URL:    http://localhost:8081/health/ready
+Docker host:   linux/amd64
+============================================================
+-> tearing down service before cold start
+-> cold start: docker compose up -d keycloak

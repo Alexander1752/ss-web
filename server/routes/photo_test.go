@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -65,16 +63,14 @@ func TestPhotoController_GetPhotos(t *testing.T) {
 		}
 	})
 
-	t.Run("success sets presigned url and respects API_BASE_URL", func(t *testing.T) {
+	t.Run("success returns photos and tolerates missing storage config", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
 		mockRepo := mock_domain.NewMockPhotoRepository(ctrl)
 		ctlr := routes.PhotoController{PhotoRepository: mockRepo}
 
-		old := os.Getenv("API_BASE_URL")
-		os.Setenv("API_BASE_URL", "https://example.com/api")
-		defer os.Setenv("API_BASE_URL", old)
+		t.Setenv("MINIO_ENDPOINT", "")
 
 		photo := &domain.Photo{
 			Timestamp: time.Unix(1600000000, 0),
@@ -93,9 +89,8 @@ func TestPhotoController_GetPhotos(t *testing.T) {
 		}
 
 		body := rr.Body.String()
-		expectedURL := "https://example.com/api/uploads/photos/1600000000.png"
-		if !strings.Contains(body, expectedURL) {
-			t.Fatalf("expected response to contain presigned url %q, got %q", expectedURL, body)
+		if !strings.Contains(body, `"presigned_url":""`) {
+			t.Fatalf("expected empty presigned url when storage is not configured, got %q", body)
 		}
 	})
 
@@ -113,7 +108,7 @@ func TestPhotoController_GetPhotos(t *testing.T) {
 				return []*domain.Photo{}, nil
 			})
 
-		start := strconvFormatInt(time.Now().Add(-2*time.Hour).UTC().Unix())
+		start := strconvFormatInt(time.Now().Add(-2 * time.Hour).UTC().Unix())
 		end := strconvFormatInt(time.Now().UTC().Unix())
 		url := fmt.Sprintf("/photos?start=%s&end=%s&text=abc&device_id=device-1", start, end)
 		req := httptest.NewRequest(http.MethodGet, url, nil)
@@ -229,7 +224,7 @@ func TestPhotoController_DeletePhoto_BadRequestsAndErrors(t *testing.T) {
 	}
 }
 
-func TestPhotoController_DeletePhoto_SuccessAndFileRemoval(t *testing.T) {
+func TestPhotoController_DeletePhoto_SuccessToleratesStorageDeleteFailure(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -238,13 +233,7 @@ func TestPhotoController_DeletePhoto_SuccessAndFileRemoval(t *testing.T) {
 
 	timestamp := int64(1600000002)
 	imageType := "png"
-	dirs := []string{"uploads", "uploads/photos"}
-	for _, d := range dirs {
-		os.MkdirAll(d, 0755)
-	}
-	filePath := filepath.Join("uploads", "photos", fmt.Sprintf("%d.%s", timestamp, imageType))
-	os.WriteFile(filePath, []byte("data"), 0644)
-	defer os.RemoveAll("uploads")
+	t.Setenv("MINIO_ENDPOINT", "")
 
 	photo := &domain.Photo{Timestamp: time.Unix(timestamp, 0), ImageType: imageType}
 	mockRepo.EXPECT().GetByID(gomock.Any(), "goodid").Return(photo, nil)
@@ -257,10 +246,6 @@ func TestPhotoController_DeletePhoto_SuccessAndFileRemoval(t *testing.T) {
 
 	if rr.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
-	}
-
-	if _, err := os.Stat(filePath); !os.IsNotExist(err) {
-		t.Fatalf("expected file %s to be removed, stat error: %v", filePath, err)
 	}
 
 	if !strings.Contains(rr.Body.String(), "Photo deleted successfully") {
@@ -290,12 +275,7 @@ func TestPhotoController_DeleteAllPhotos(t *testing.T) {
 		t.Errorf("expected status %d for delete all failure, got %d", http.StatusInternalServerError, rr.Code)
 	}
 
-	os.RemoveAll("uploads")
-	os.MkdirAll(filepath.Join("uploads", "photos"), 0755)
-	for i := 0; i < 3; i++ {
-		p := filepath.Join("uploads", "photos", fmt.Sprintf("file%d.jpg", i))
-		os.WriteFile(p, []byte("x"), 0644)
-	}
+	t.Setenv("MINIO_ENDPOINT", "")
 
 	mockRepo.EXPECT().DeleteAll(gomock.Any()).Return(int64(3), nil)
 	req = httptest.NewRequest(http.MethodDelete, "/photos/all", nil)
@@ -303,11 +283,6 @@ func TestPhotoController_DeleteAllPhotos(t *testing.T) {
 	ctlr.DeleteAllPhotos(rr, req)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("expected status %d for successful delete all, got %d", http.StatusOK, rr.Code)
-	}
-
-	files, _ := filepath.Glob(filepath.Join("uploads", "photos", "*"))
-	if len(files) != 0 {
-		t.Fatalf("expected uploads/photos to be empty after delete all, found: %v", files)
 	}
 
 	var resp map[string]any

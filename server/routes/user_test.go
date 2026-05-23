@@ -9,8 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"go.uber.org/mock/gomock"
+	"github.com/golang-jwt/jwt/v4"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.uber.org/mock/gomock"
 	"golang.org/x/crypto/bcrypt"
 
 	"mqtt-streaming-server/domain"
@@ -59,6 +60,7 @@ func TestUserController_Register(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
+			t.Setenv("JWT_SECRET", "test-secret")
 
 			mockRepo := mock_domain.NewMockUserRepository(ctrl)
 			ctlr := routes.UserController{UserRepository: mockRepo}
@@ -206,8 +208,19 @@ func TestUserController_Login(t *testing.T) {
 				if got := rr.Header().Get("Content-Type"); !strings.Contains(got, "application/json") {
 					t.Errorf("expected JSON content type, got %q", got)
 				}
-				if !strings.Contains(rr.Body.String(), "placeholder-token-implement-jwt") {
-					t.Errorf("expected placeholder token in response, got %q", rr.Body.String())
+				var response map[string]string
+				if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+					t.Fatalf("failed to parse login response: %v", err)
+				}
+				if response["token"] == "" {
+					t.Fatalf("expected JWT token in response, got %q", rr.Body.String())
+				}
+				claims := jwt.MapClaims{}
+				if _, _, err := new(jwt.Parser).ParseUnverified(response["token"], claims); err != nil {
+					t.Fatalf("expected parseable JWT token, got err=%v", err)
+				}
+				if claims["email"] != tt.mockUser.Email {
+					t.Fatalf("expected token email claim %q, got %v", tt.mockUser.Email, claims["email"])
 				}
 			}
 

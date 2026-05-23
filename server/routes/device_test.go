@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,10 @@ import (
 	"mqtt-streaming-server/domain"
 	mock_domain "mqtt-streaming-server/mocks"
 )
+
+func withRole(req *http.Request, role string) *http.Request {
+	return req.WithContext(context.WithValue(req.Context(), "role", role))
+}
 
 type mockMQTTToken struct {
 	err error
@@ -113,7 +118,7 @@ func TestDeviceController_GetDevices(t *testing.T) {
 
 		mockRepo.EXPECT().GetAllDevices(gomock.Any()).Return(nil, errors.New("db error"))
 
-		req := httptest.NewRequest(http.MethodGet, "/devices", nil)
+		req := withRole(httptest.NewRequest(http.MethodGet, "/devices", nil), "admin")
 		rr := httptest.NewRecorder()
 
 		ctlr.GetDevices(rr, req)
@@ -137,7 +142,7 @@ func TestDeviceController_GetDevices(t *testing.T) {
 			{ID: "dev-1", DeviceName: "iPhone"},
 		}, nil)
 
-		req := httptest.NewRequest(http.MethodGet, "/devices", nil)
+		req := withRole(httptest.NewRequest(http.MethodGet, "/devices", nil), "admin")
 		rr := httptest.NewRecorder()
 
 		ctlr.GetDevices(rr, req)
@@ -174,7 +179,7 @@ func TestDeviceController_SwitchDeviceMode(t *testing.T) {
 	t.Run("invalid request body", func(t *testing.T) {
 		ctlr := DeviceController{mqttClient: &mockMQTTClient{}}
 
-		req := httptest.NewRequest(http.MethodPost, "/devices/switch", strings.NewReader("invalid json"))
+		req := withRole(httptest.NewRequest(http.MethodPost, "/devices/switch", strings.NewReader("invalid json")), "admin")
 		rr := httptest.NewRecorder()
 
 		ctlr.SwitchDeviceMode(rr, req)
@@ -191,7 +196,7 @@ func TestDeviceController_SwitchDeviceMode(t *testing.T) {
 		mqttClient := &mockMQTTClient{publishErr: errors.New("publish failed")}
 		ctlr := DeviceController{mqttClient: mqttClient}
 
-		req := httptest.NewRequest(http.MethodPost, "/devices/switch", strings.NewReader(`{"id":"dev-1","mode":"LIVE"}`))
+		req := withRole(httptest.NewRequest(http.MethodPost, "/devices/switch", strings.NewReader(`{"id":"dev-1","mode":"LIVE"}`)), "admin")
 		rr := httptest.NewRecorder()
 
 		ctlr.SwitchDeviceMode(rr, req)
@@ -220,7 +225,7 @@ func TestDeviceController_SwitchDeviceMode(t *testing.T) {
 		mqttClient := &mockMQTTClient{}
 		ctlr := DeviceController{mqttClient: mqttClient}
 
-		req := httptest.NewRequest(http.MethodPost, "/devices/switch", strings.NewReader(`{"id":"dev-2","mode":"NORMAL"}`))
+		req := withRole(httptest.NewRequest(http.MethodPost, "/devices/switch", strings.NewReader(`{"id":"dev-2","mode":"NORMAL"}`)), "admin")
 		rr := httptest.NewRecorder()
 
 		ctlr.SwitchDeviceMode(rr, req)

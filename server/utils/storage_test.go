@@ -1,58 +1,65 @@
 package utils
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
 
-func TestSaveToLocal_CreatesDirectoriesAndWritesFile(t *testing.T) {
-	tempDir := t.TempDir()
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get working directory: %v", err)
-	}
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("failed to chdir temp: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = os.Chdir(oldWD)
-	})
+func resetStorageState(t *testing.T) {
+	t.Helper()
+	storageOnce = sync.Once{}
+	storageErr = nil
+	storageS3 = nil
+	storageBucket = ""
+}
 
-	content := []byte("image-bytes")
-	err = SaveToLocal(content, filepath.Join("photos", "123.png"))
-	if err != nil {
-		t.Fatalf("expected nil error, got %v", err)
+func TestStorageOperationsRequireMinIOEndpoint(t *testing.T) {
+	tests := []struct {
+		name string
+		run  func() error
+	}{
+		{
+			name: "save",
+			run: func() error {
+				return SaveToMinIO([]byte("image-bytes"), "photos/123.png")
+			},
+		},
+		{
+			name: "delete object",
+			run: func() error {
+				return DeleteFromMinIO("photos/123.png")
+			},
+		},
+		{
+			name: "delete prefix",
+			run: func() error {
+				return DeletePrefixFromMinIO("photos/")
+			},
+		},
 	}
 
-	path := filepath.Join(tempDir, "uploads", "photos", "123.png")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("expected file to be created, got %v", err)
-	}
-	if string(data) != string(content) {
-		t.Fatalf("expected written content %q, got %q", string(content), string(data))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetStorageState(t)
+			t.Setenv("MINIO_ENDPOINT", "")
+
+			err := tt.run()
+			if err == nil {
+				t.Fatalf("expected missing endpoint error")
+			}
+			if !strings.Contains(err.Error(), "MINIO_ENDPOINT is required") {
+				t.Fatalf("expected missing endpoint error, got %v", err)
+			}
+		})
 	}
 }
 
-func TestGetLocalURL_UsesDefaultAndEnvBaseURL(t *testing.T) {
-	t.Run("uses default base url", func(t *testing.T) {
-		t.Setenv("API_BASE_URL", "")
-		url := GetLocalURL("photos/1.png")
-		if url != "http://localhost:8080/uploads/photos/1.png" {
-			t.Fatalf("unexpected default URL: %s", url)
-		}
-	})
+func TestGetPresignedURL_ReturnsEmptyWhenStorageCannotInitialize(t *testing.T) {
+	resetStorageState(t)
+	t.Setenv("MINIO_ENDPOINT", "")
 
-	t.Run("trims trailing slash from env base url", func(t *testing.T) {
-		t.Setenv("API_BASE_URL", "https://api.example.com/")
-		url := GetLocalURL("photos/2.png")
-		if url != "https://api.example.com/uploads/photos/2.png" {
-			t.Fatalf("unexpected env URL: %s", url)
-		}
-		if strings.Contains(url, "//uploads") {
-			t.Fatalf("expected normalized URL without double slash, got %s", url)
-		}
-	})
+	if url := GetPresignedURL("photos/123.png"); url != "" {
+		t.Fatalf("expected empty URL when storage initialization fails, got %q", url)
+	}
 }
