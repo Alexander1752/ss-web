@@ -89,13 +89,16 @@ func (c *mockMQTTClient) OptionsReader() mqtt.ClientOptionsReader {
 
 func TestDeviceController_GetDevices(t *testing.T) {
 	t.Run("method not allowed", func(t *testing.T) {
-		ctlr := DeviceController{}
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
+		ctlr := DeviceController{Service: &DeviceService{Repo: mockRepo}}
 
 		req := httptest.NewRequest(http.MethodPost, "/devices", nil)
 		rr := httptest.NewRecorder()
 
-			mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
-			ctlr := routes.DeviceController{Service: &routes.DeviceService{Repo: mockRepo}}
+		ctlr.GetDevices(rr, req)
 
 		if rr.Code != http.StatusMethodNotAllowed {
 			t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
