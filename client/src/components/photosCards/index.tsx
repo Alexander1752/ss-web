@@ -114,9 +114,10 @@ const PhotoCard: React.FC<PhotoCardProps> = ({
           onClick={handleModalClick}
         >
           <div
-            className="relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-4xl max-h-[90vh] overflow-hidden transform transition-all duration-300 ease-in-out animate-scaleIn"
+            className="relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col transform transition-all duration-300 ease-in-out animate-scaleIn"
           >
-            <div className="absolute top-0 right-0 left-0 bg-gradient-to-b from-black/50 to-transparent h-20 z-10 flex justify-between items-start p-4">
+            {/* Fixed header */}
+            <div className="flex-shrink-0 bg-gradient-to-b from-black/50 to-transparent flex justify-between items-start p-4 rounded-t-xl">
               <div className="text-white text-lg font-medium truncate pr-10">{altText}</div>
               <button
                 className="bg-white/20 hover:bg-white/40 text-white rounded-full p-2 backdrop-blur-sm transition-all duration-200"
@@ -128,20 +129,23 @@ const PhotoCard: React.FC<PhotoCardProps> = ({
               </button>
             </div>
 
-            <div className="p-4 pt-20">
-              <img
-                src={imageError ? fallbackImage : imageUrl}
-                alt={altText}
-                className="max-w-full max-h-[65vh] object-contain mx-auto rounded-md"
-              />
-            </div>
-
-            {extractedText && (
-              <div className="bg-gray-50 dark:bg-gray-800 p-6 border-t border-gray-100 dark:border-gray-700">
-                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Extracted Text</h3>
-                <p className="text-gray-800 dark:text-gray-200 text-base">{extractedText}</p>
+            {/* Scrollable body */}
+            <div className="overflow-y-auto flex-1">
+              <div className="p-4">
+                <img
+                  src={imageError ? fallbackImage : imageUrl}
+                  alt={altText}
+                  className="max-w-full object-contain mx-auto rounded-md"
+                />
               </div>
-            )}
+
+              {extractedText && (
+                <div className="bg-gray-50 dark:bg-gray-800 p-6 border-t border-gray-100 dark:border-gray-700">
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Extracted Text</h3>
+                  <p className="text-gray-800 dark:text-gray-200 text-base whitespace-pre-wrap">{extractedText}</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
