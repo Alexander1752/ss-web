@@ -29,7 +29,8 @@ services:
     container_name: keycloak
     restart: always
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
@@ -40,6 +41,7 @@ services:
       KC_HEALTH_ENABLED: "true"
       KC_HTTPS_CERTIFICATE_FILE: /opt/keycloak/conf/certs/tls.crt
       KC_HTTPS_CERTIFICATE_KEY_FILE: /opt/keycloak/conf/certs/tls.key
+      KC_OVERRIDE_REALM_ON_IMPORT: "true"
     command:
       - start
       - --optimized
