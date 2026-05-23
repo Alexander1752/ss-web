@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiFetch } from '../../utils/api';
 import {
@@ -51,11 +51,7 @@ const StatisticsPage: React.FC = () => {
     const [startDate, setStartDate] = useState(thirtyDaysAgo.toISOString().slice(0, 10));
     const [endDate, setEndDate] = useState(today.toISOString().slice(0, 10));
 
-    useEffect(() => {
-        fetchData();
-    }, [startDate, endDate]);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
@@ -87,7 +83,11 @@ const StatisticsPage: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [startDate, endDate, token]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     // Process data for charts
     const getControlStats = () => {

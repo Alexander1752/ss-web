@@ -14,6 +14,7 @@ import (
 	domain "mqtt-streaming-server/domain"
 	reflect "reflect"
 
+	primitive "go.mongodb.org/mongo-driver/bson/primitive"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -165,6 +166,20 @@ func (m *MockPhotoRepository) Save(ctx context.Context, photo *domain.Photo) err
 func (mr *MockPhotoRepositoryMockRecorder) Save(ctx, photo any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockPhotoRepository)(nil).Save), ctx, photo)
+}
+
+// UpdatePhotoTextAndMedicalData mocks base method.
+func (m *MockPhotoRepository) UpdatePhotoTextAndMedicalData(ctx context.Context, id primitive.ObjectID, updates map[string]any) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdatePhotoTextAndMedicalData", ctx, id, updates)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdatePhotoTextAndMedicalData indicates an expected call of UpdatePhotoTextAndMedicalData.
+func (mr *MockPhotoRepositoryMockRecorder) UpdatePhotoTextAndMedicalData(ctx, id, updates any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdatePhotoTextAndMedicalData", reflect.TypeOf((*MockPhotoRepository)(nil).UpdatePhotoTextAndMedicalData), ctx, id, updates)
 }
 
 // MockDeviceRepository is a mock of DeviceRepository interface.

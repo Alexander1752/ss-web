@@ -94,7 +94,11 @@ func (c *mockMQTTClient) OptionsReader() mqtt.ClientOptionsReader {
 
 func TestDeviceController_GetDevices(t *testing.T) {
 	t.Run("method not allowed", func(t *testing.T) {
-		ctlr := DeviceController{}
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
+		ctlr := DeviceController{Service: &DeviceService{Repo: mockRepo}}
 
 		req := httptest.NewRequest(http.MethodPost, "/devices", nil)
 		rr := httptest.NewRecorder()
@@ -114,11 +118,12 @@ func TestDeviceController_GetDevices(t *testing.T) {
 		defer ctrl.Finish()
 
 		mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
-		ctlr := DeviceController{DeviceRepository: mockRepo}
+		ctlr := DeviceController{Service: &DeviceService{Repo: mockRepo}}
 
 		mockRepo.EXPECT().GetAllDevices(gomock.Any()).Return(nil, errors.New("db error"))
 
-		req := withRole(httptest.NewRequest(http.MethodGet, "/devices", nil), "admin")
+		req := httptest.NewRequest(http.MethodGet, "/devices", nil)
+		req = req.WithContext(context.WithValue(req.Context(), "role", "admin"))
 		rr := httptest.NewRecorder()
 
 		ctlr.GetDevices(rr, req)
@@ -136,13 +141,14 @@ func TestDeviceController_GetDevices(t *testing.T) {
 		defer ctrl.Finish()
 
 		mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
-		ctlr := DeviceController{DeviceRepository: mockRepo}
+		ctlr := DeviceController{Service: &DeviceService{Repo: mockRepo}}
 
 		mockRepo.EXPECT().GetAllDevices(gomock.Any()).Return([]*domain.Device{
 			{ID: "dev-1", DeviceName: "iPhone"},
 		}, nil)
 
-		req := withRole(httptest.NewRequest(http.MethodGet, "/devices", nil), "admin")
+		req := httptest.NewRequest(http.MethodGet, "/devices", nil)
+		req = req.WithContext(context.WithValue(req.Context(), "role", "admin"))
 		rr := httptest.NewRecorder()
 
 		ctlr.GetDevices(rr, req)
@@ -177,9 +183,10 @@ func TestDeviceController_SwitchDeviceMode(t *testing.T) {
 	})
 
 	t.Run("invalid request body", func(t *testing.T) {
-		ctlr := DeviceController{mqttClient: &mockMQTTClient{}}
+		ctlr := DeviceController{Service: &DeviceService{MqttClient: &mockMQTTClient{}}}
 
-		req := withRole(httptest.NewRequest(http.MethodPost, "/devices/switch", strings.NewReader("invalid json")), "admin")
+		req := httptest.NewRequest(http.MethodPost, "/devices/switch", strings.NewReader("invalid json"))
+		req = req.WithContext(context.WithValue(req.Context(), "role", "admin"))
 		rr := httptest.NewRecorder()
 
 		ctlr.SwitchDeviceMode(rr, req)
@@ -194,9 +201,10 @@ func TestDeviceController_SwitchDeviceMode(t *testing.T) {
 
 	t.Run("mqtt publish error", func(t *testing.T) {
 		mqttClient := &mockMQTTClient{publishErr: errors.New("publish failed")}
-		ctlr := DeviceController{mqttClient: mqttClient}
+		ctlr := DeviceController{Service: &DeviceService{MqttClient: mqttClient}}
 
-		req := withRole(httptest.NewRequest(http.MethodPost, "/devices/switch", strings.NewReader(`{"id":"dev-1","mode":"LIVE"}`)), "admin")
+		req := httptest.NewRequest(http.MethodPost, "/devices/switch", strings.NewReader(`{"id":"dev-1","mode":"LIVE"}`))
+		req = req.WithContext(context.WithValue(req.Context(), "role", "admin"))
 		rr := httptest.NewRecorder()
 
 		ctlr.SwitchDeviceMode(rr, req)
@@ -223,9 +231,10 @@ func TestDeviceController_SwitchDeviceMode(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		mqttClient := &mockMQTTClient{}
-		ctlr := DeviceController{mqttClient: mqttClient}
+		ctlr := DeviceController{Service: &DeviceService{MqttClient: mqttClient}}
 
-		req := withRole(httptest.NewRequest(http.MethodPost, "/devices/switch", strings.NewReader(`{"id":"dev-2","mode":"NORMAL"}`)), "admin")
+		req := httptest.NewRequest(http.MethodPost, "/devices/switch", strings.NewReader(`{"id":"dev-2","mode":"NORMAL"}`))
+		req = req.WithContext(context.WithValue(req.Context(), "role", "admin"))
 		rr := httptest.NewRecorder()
 
 		ctlr.SwitchDeviceMode(rr, req)
@@ -269,7 +278,7 @@ func TestDeviceController_SendCommand(t *testing.T) {
 	})
 
 	t.Run("invalid request body", func(t *testing.T) {
-		ctlr := DeviceController{mqttClient: &mockMQTTClient{}}
+		ctlr := DeviceController{Service: &DeviceService{MqttClient: &mockMQTTClient{}}}
 
 		req := httptest.NewRequest(http.MethodPost, "/devices/command", strings.NewReader("invalid json"))
 		rr := httptest.NewRecorder()
@@ -285,7 +294,8 @@ func TestDeviceController_SendCommand(t *testing.T) {
 	})
 
 	t.Run("invalid command", func(t *testing.T) {
-		ctlr := DeviceController{mqttClient: &mockMQTTClient{}}
+		mqttMock := &mockMQTTClient{}
+		ctlr := DeviceController{Service: &DeviceService{MqttClient: mqttMock}}
 
 		req := httptest.NewRequest(http.MethodPost, "/devices/command", strings.NewReader(`{"device_id":"dev-1","command":"REBOOT"}`))
 		rr := httptest.NewRecorder()
@@ -298,14 +308,14 @@ func TestDeviceController_SendCommand(t *testing.T) {
 		if !strings.Contains(rr.Body.String(), "Invalid command") {
 			t.Fatalf("expected invalid command message, got %q", rr.Body.String())
 		}
-		if ctlr.mqttClient.(*mockMQTTClient).publishCalled {
+		if mqttMock.publishCalled {
 			t.Fatalf("expected publish to not be called for invalid command")
 		}
 	})
 
 	t.Run("mqtt publish error", func(t *testing.T) {
 		mqttClient := &mockMQTTClient{publishErr: errors.New("publish failed")}
-		ctlr := DeviceController{mqttClient: mqttClient}
+		ctlr := DeviceController{Service: &DeviceService{MqttClient: mqttClient}}
 
 		req := httptest.NewRequest(http.MethodPost, "/devices/command", strings.NewReader(`{"device_id":"dev-1","command":"CAPTURE"}`))
 		rr := httptest.NewRecorder()
@@ -336,7 +346,7 @@ func TestDeviceController_SendCommand(t *testing.T) {
 		cmd := cmd
 		t.Run("success returns json for "+cmd, func(t *testing.T) {
 			mqttClient := &mockMQTTClient{}
-			ctlr := DeviceController{mqttClient: mqttClient}
+			ctlr := DeviceController{Service: &DeviceService{MqttClient: mqttClient}}
 
 			req := httptest.NewRequest(http.MethodPost, "/devices/command", strings.NewReader(`{"device_id":"dev-42","command":"`+cmd+`"}`))
 			rr := httptest.NewRecorder()
@@ -371,5 +381,68 @@ func TestDeviceController_SendCommand(t *testing.T) {
 				t.Fatalf("expected payload %s, got %v", cmd, mqttClient.lastPayload)
 			}
 		})
+	}
+}
+
+func TestDeviceController_SwitchDeviceMode_MethodNotAllowed(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
+	ctlr := DeviceController{Service: &DeviceService{Repo: mockRepo}}
+
+	url := "/devices/switch"
+	req := httptest.NewRequest(http.MethodGet, url, nil) // Using GET instead of POST
+	rr := httptest.NewRecorder()
+
+	ctlr.SwitchDeviceMode(rr, req)
+
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Errorf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "Method not allowed") {
+		t.Errorf("expected body to contain 'Method not allowed', got %q", rr.Body.String())
+	}
+}
+
+func TestDeviceController_GetDevices_MethodNotAllowed(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
+	ctlr := DeviceController{Service: &DeviceService{Repo: mockRepo}}
+
+	req := httptest.NewRequest(http.MethodPost, "/devices", nil) // Using POST instead of GET
+	rr := httptest.NewRecorder()
+
+	ctlr.GetDevices(rr, req)
+
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Errorf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "Method not allowed") {
+		t.Errorf("expected body to contain 'Method not allowed', got %q", rr.Body.String())
+	}
+}
+
+func TestDeviceController_SwitchDeviceMode_InvalidRequestBody(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mock_domain.NewMockDeviceRepository(ctrl)
+	ctlr := DeviceController{Service: &DeviceService{Repo: mockRepo}}
+
+	url := "/devices/switch"
+	req := httptest.NewRequest(http.MethodPost, url, strings.NewReader("invalid json"))
+	ctx := context.WithValue(req.Context(), "email", "	invalid@example.com")
+	ctx = context.WithValue(ctx, "role", "admin")
+	req = req.WithContext(ctx)
+	rr := httptest.NewRecorder()
+	ctlr.SwitchDeviceMode(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d", http.StatusBadRequest, rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "Invalid request body") {
+		t.Errorf("expected body to contain 'Invalid request body', got %q", rr.Body.String())
 	}
 }
