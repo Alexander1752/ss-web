@@ -80,8 +80,8 @@ jobs:
           format: 'cyclonedx-json'
           output-file: 'sbom.cyclonedx.json'
 
-      - name: Commit SBOM back to repository
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+      - name: Commit SBOM back to PR branch
+        if: github.event_name == 'pull_request'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: update SBOM"
