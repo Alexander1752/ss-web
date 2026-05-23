@@ -32,6 +32,13 @@ func NewBrokerHandler(db *mongo.Database) BrokerHandler {
 	}
 }
 
+func NewBrokerHandlerWithRepos(photoRepo domain.PhotoRepository, deviceRepo domain.DeviceRepository) BrokerHandler {
+	return BrokerHandler{
+		photoRepository:  photoRepo,
+		deviceRepository: deviceRepo,
+	}
+}
+
 func (b BrokerHandler) HandlePhoto(client mqtt.Client, msg mqtt.Message) {
 	topic := msg.Topic()
 	var deviceID string
