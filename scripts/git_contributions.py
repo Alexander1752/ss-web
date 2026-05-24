@@ -2,8 +2,8 @@
 """
 Computes a per-member Git contribution table (lines added, removed, commits).
 Merges multiple email aliases into a single canonical name.
-Usage: python3 scripts/git_contributions.sh
-   or: ./scripts/git_contributions.sh
+Usage: python3 scripts/git_contributions.py
+   or: ./scripts/git_contributions.py
 """
 
 import subprocess
