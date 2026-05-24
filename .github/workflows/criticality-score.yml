@@ -1,0 +1,51 @@
+name: OSSF Criticality Score
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  schedule:
+    # Run weekly on Monday at 00:00 UTC
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  criticality-score:
+    name: Compute criticality score (original_pike.yml)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Install criticality_score
+        run: go install github.com/ossf/criticality_score/v2/cmd/criticality_score@latest
+
+      - name: Run criticality score
+        env:
+          GITHUB_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          criticality_score \
+            -scoring-config original_pike.yml \
+            -depsdev-disable \
+            -format json \
+            -out criticality-score-result.json \
+            https://github.com/${{ github.repository }}
+
+      - name: Print score to log
+        run: cat criticality-score-result.json
+
+      - name: Upload criticality score result
+        uses: actions/upload-artifact@v4
+        with:
+          name: criticality-score-result
+          path: criticality-score-result.json
