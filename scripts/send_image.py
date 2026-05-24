@@ -100,7 +100,8 @@ def on_connect(client, userdata, flags, rc):
             print("Sending generated test image (no file argument provided)")
             image_data = create_test_image()
 
-        client.publish(PHOTO_TOPIC, image_data)
+        msg_info = client.publish(PHOTO_TOPIC, image_data)
+        msg_info.wait_for_publish()
     else:
         print(f"Failed to connect, return code {rc}")
         sys.exit(1)

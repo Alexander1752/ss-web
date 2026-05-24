@@ -94,3 +94,17 @@ func (s *PhotoService) DeleteAllPhotos(ctx context.Context) (int64, error) {
 
 	return count, nil
 }
+
+func (s *PhotoService) UploadPhoto(ctx context.Context, deviceID, imageType string, photoBytes []byte) error {
+	if deviceID == "" {
+		deviceID = "uploaded_from_web"
+	}
+
+	topic := fmt.Sprintf("ssproject/images/%s", deviceID)
+
+	if err := utils.PublishToMQTT(topic, photoBytes); err != nil {
+		return fmt.Errorf("failed to publish photo to mqtt: %w", err)
+	}
+
+	return nil
+}
