@@ -15,7 +15,7 @@ KEYFILE = "/certs/client.key"
 
 def on_connect(client, userdata, flags, rc):
     print(f"Connected to MQTT Broker with result code {rc}")
-    client.subscribe("ssproject/images/#")
+    client.subscribe("ssproject/ocr/requests")
 
 def on_message(client, userdata, msg):
     try:
@@ -40,8 +40,7 @@ def on_message(client, userdata, msg):
             "text": text.strip() if text else "OCR failed"
         }
         
-        res = client.publish("ssproject/ocr/results", json.dumps(result_payload))
-        res.wait_for_publish()
+        client.publish("ssproject/ocr/results", json.dumps(result_payload))
         print(f"Published OCR result for photo {photo_id}")
         
     except Exception as e:
