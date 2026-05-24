@@ -13,7 +13,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ authRequired: _authRequ
   
   // While auth state is loading, show nothing (or could add a loading spinner here)
   if (loading) {
-    return <div className="flex justify-center items-center min-h-[60vh]">
+    return <div role="status" aria-label="Loading authentication" className="flex justify-center items-center min-h-[60vh]">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500"></div>
     </div>;
   }
