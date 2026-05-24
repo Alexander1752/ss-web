@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -27,6 +29,7 @@ func InitPhotoRoutes(db *mongo.Database, mux *http.ServeMux) {
 
 	mux.Handle("/photos", withAuth(http.HandlerFunc(photoController.GetPhotos)))
 	mux.Handle("/photos/all", withAuth(http.HandlerFunc(photoController.DeleteAllPhotos)))
+	mux.Handle("/photos/upload", withAuth(http.HandlerFunc(photoController.UploadPhoto)))
 	mux.Handle("/photos/", withAuth(http.HandlerFunc(photoController.DeletePhoto)))
 }
 
@@ -115,3 +118,53 @@ func (ctlr PhotoController) DeleteAllPhotos(w http.ResponseWriter, r *http.Reque
 	})
 }
 
+func (ctlr PhotoController) UploadPhoto(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Parse the multipart form with a max memory of 10MB
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		http.Error(w, "Failed to parse form data", http.StatusBadRequest)
+		return
+	}
+
+	// Extract device_id (will be empty if not provided)
+	deviceID := r.FormValue("device_id")
+
+	// Extract the file
+	file, handler, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "Missing file in request", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// Read the file bytes
+	photoBytes, err := io.ReadAll(file)
+	if err != nil {
+		http.Error(w, "Failed to read file", http.StatusInternalServerError)
+		return
+	}
+
+	// Extract the extension to use as image type (e.g., "jpg", "png")
+	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(handler.Filename)), ".")
+	if ext == "" {
+		ext = "jpg" // Fallback
+	}
+
+	// Hand off the pure data to the Service layer
+	err = ctlr.Service.UploadPhoto(r.Context(), deviceID, ext, photoBytes)
+	if err != nil {
+		http.Error(w, "Failed to process upload: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status":  "success",
+		"message": "Photo sent for processing",
+	})
+}

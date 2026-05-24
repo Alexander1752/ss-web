@@ -203,7 +203,7 @@ const DevicesPage: React.FC = () => {
           </div>
           <button
             onClick={() => navigator.clipboard.writeText(`${brokerInfo.ip}:${brokerInfo.port}`)}
-            className="ml-auto bg-white/20 hover:bg-white/30 px-3 py-1 rounded-md text-sm transition-colors"
+            className="ml-auto bg-white/20 hover:bg-white/30 px-3 py-1 rounded-md text-sm cursor-pointer transition-colors"
             disabled={!brokerInfo.ip}
           >
             Copy
@@ -216,7 +216,7 @@ const DevicesPage: React.FC = () => {
         {/* Loading state */}
         {loading && (
           <div className="flex justify-center items-center h-40">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500" />
           </div>
         )}
 
@@ -258,7 +258,7 @@ const DevicesPage: React.FC = () => {
                       {/* Loading overlay */}
                       {actionState.loading && (
                         <div className="absolute inset-0 bg-white dark:bg-gray-800 bg-opacity-70 dark:bg-opacity-70 flex items-center justify-center rounded-lg">
-                          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-sky-500"></div>
+                          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-sky-500" />
                         </div>
                       )}
 

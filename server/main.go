@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,7 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
@@ -43,30 +41,13 @@ func main() {
 
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
+	if err := utils.InitMQTT(); err != nil {
+		panic(fmt.Errorf("failed to initialize MQTT client: %w", err))
+	}
+
+	client := utils.MQTTClient
+
 	brokerHandler := broker.NewBrokerHandler(db)
-
-	clientCert, err := tls.LoadX509KeyPair("/certs/client.crt", "/certs/client.key")
-	if err != nil {
-		panic(fmt.Errorf("failed to load MQTT client certificate: %w", err))
-	}
-
-	tlsConfig := &tls.Config{
-		RootCAs:      utils.GetCACertPool(),
-		Certificates: []tls.Certificate{clientCert},
-		MinVersion:   tls.VersionTLS12,
-		ServerName:   os.Getenv("MQTT_HOST"),
-	}
-
-	opts := mqtt.NewClientOptions()
-	opts.AddBroker("ssl://" + os.Getenv("MQTT_HOST") + ":8883")
-	opts.SetClientID("web")
-	opts.SetTLSConfig(tlsConfig)
-
-	// Start the connection
-	client := mqtt.NewClient(opts)
-	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		panic(token.Error())
-	}
 
 	// Subscribe to images topic
 	if token := client.Subscribe("ssproject/images/#", 0, brokerHandler.HandlePhoto); token.Wait() && token.Error() != nil {

@@ -123,9 +123,11 @@ services:
       - 8883:8883
     volumes:
       - ./broker/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./broker/acl.conf:/mosquitto/config/acl.conf
       - ./secrets/ca.pem:/certs/ca.crt
       - ./secrets/broker.crt:/certs/server.crt
       - ./secrets/broker.key:/certs/server.key
+      - broker-data:/mosquitto/data
     networks:
       - broker
 
@@ -142,8 +144,8 @@ services:
       - broker
     volumes:
       - ./secrets/ca.pem:/certs/ca.crt
-      - ./secrets/client.crt:/certs/client.crt
-      - ./secrets/client.key:/certs/client.key
+      - ./secrets/ocr-service.crt:/certs/client.crt
+      - ./secrets/ocr-service.key:/certs/client.key
 
   mongo-db:
     container_name: mongo-db
@@ -206,6 +208,7 @@ volumes:
   mongo-data:
   minio-data:
   postgres-data:
+  broker-data:
 
 networks:
   keycloak:

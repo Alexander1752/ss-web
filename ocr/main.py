@@ -15,7 +15,7 @@ KEYFILE = "/certs/client.key"
 
 def on_connect(client, userdata, flags, rc):
     print(f"Connected to MQTT Broker with result code {rc}")
-    client.subscribe("ssproject/ocr/requests")
+    client.subscribe("ssproject/images/#")
 
 def on_message(client, userdata, msg):
     try:
@@ -40,13 +40,14 @@ def on_message(client, userdata, msg):
             "text": text.strip() if text else "OCR failed"
         }
         
-        client.publish("ssproject/ocr/results", json.dumps(result_payload))
+        res = client.publish("ssproject/ocr/results", json.dumps(result_payload))
+        res.wait_for_publish()
         print(f"Published OCR result for photo {photo_id}")
         
     except Exception as e:
         print(f"Error processing message: {e}")
 
-client = mqtt.Client(client_id="ocr-service")
+client = mqtt.Client(client_id=f"ocr-service-{os.getenv('HOSTNAME')}")
 
 tls_available = os.path.exists(CA_CERTS) and os.path.exists(CERTFILE) and os.path.exists(KEYFILE)
 
