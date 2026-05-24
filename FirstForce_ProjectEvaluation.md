@@ -14,16 +14,13 @@
 
 | Member                       | Primary role                                                                  |
 | ---------------------------- | ----------------------------------------------------------------------------- |
-| Andrei Petrea                | Project lead / DevOps — repo bootstrap, OCR service, CI/CD, Keycloak hardening |
-| Alex Munteanu                | Full-stack developer — Go API, React client, MQTT broker integration         |
-| Andrei Săcăluș               | Backend developer — repository layer, photo/device routes, MinIO/S3 storage  |
+| Andrei Petrea                | repo bootstrap, OCR service, CI/CD, Keycloak hardening |
+| Alex Munteanu                | Go API, React client, MQTT broker integration         |
+| Andrei Săcăluș               | repository layer, photo/device routes, MinIO/S3 storage  |
 | Mihai-Lucian Pandelica       | Backend / Keycloak integration — JWT validation, realm config, statistics    |
 | Flavius Mazilu               | Security & compliance — SBOM pipeline, CodeQL, OSSF criticality score        |
-| Cristian-Alexandru Chiriac   | Security contact — `SECURITY.md`, vulnerability triage                       |
+| Cristian-Alexandru Chiriac   | Security — e.g. `SECURITY.md`, vulnerability triage                       |
 
-> Roles are inferred from the topical concentration of each member's contributions; adjust if your team had different responsibilities.
-
----
 
 ## 2. Project Summary
 
@@ -43,9 +40,7 @@ All services are orchestrated with `docker compose`. A regex-based medical-certi
 
 Computed with the official **`ossf/criticality_score`** CLI against the repo's `original_pike.yml` (the default Rob Pike weights), with the GitHub workflow at `.github/workflows/criticality-score.yml` automating the run on every push, every PR, and weekly.
 
-> **Score:** _<run the command in §7 and paste the resulting `default_score` value here>_
-
-The artifact is published by the workflow (`criticality-score-result.json`); the same JSON can be reproduced locally — see Section 7.
+> **Score:** 0.21426
 
 ---
 
@@ -139,23 +134,23 @@ docker run --rm -v "$PWD":/workspace anchore/syft:latest \
 
 ### 4.1 Threat Modelling & Mitigations (0.15 p)
 
-The data flow has four trust boundaries: **device ↔ broker**, **broker ↔ services**, **browser ↔ NGINX/API**, **API ↔ DB/storage**. Threats are listed below using STRIDE.
+The data flow has four trust boundaries: **device <-> broker**, **broker <-> services**, **browser <-> NGINX/API**, **API <-> DB/storage**. Threats are listed below using STRIDE.
 
 ```
 ┌──────────────┐  mTLS 8883  ┌──────────┐  mTLS  ┌──────────┐
-│ ESP32 / Phone│ ──────────▶ │ Mosquitto│ ─────▶ │ Go API   │
+│ ESP32 / Phone│ ──────────> │ Mosquitto│ ─────> │ Go API   │
 └──────────────┘             └──────────┘        └──────────┘
                                   │                  │
                                   │ mTLS             │ MongoDB / MinIO
-                                  ▼                  ▼
+                                  │                  │
                               ┌────────┐         ┌────────┐
                               │ OCR svc│         │ Storage│
                               └────────┘         └────────┘
-                                                     ▲
+                                                     ^
                                               OIDC / JWT
                                                      │
                                            ┌─────────┴───────┐
-                                           │ Browser (React) │◀── Keycloak
+                                           │ Browser (React) │<── Keycloak
                                            └─────────────────┘
 ```
 
@@ -213,7 +208,7 @@ go tool cover -html=coverage.out -o cov.html  # HTML drill-down
 
 The CI captures `coverage.out` as an artifact (`go-coverage`).
 
-> **Reported coverage:** _<paste `total: (statements) XX.X%` from the `go tool cover -func` output here>_
+> **Reported coverage:** coverage: 82.4% of statements
 
 **Testing strategy.**
 
@@ -264,14 +259,14 @@ Example template:
 Generated from `git log --all --numstat` with the alias mapping in `scripts/git_contributions.py` (Alexander1752 and Vulturul2k are GitHub handles for the same team member; Andrei02-stack / MunteanuAlexandru02 / ReGeLePuMa are noreply aliases).
 
 | Team Member                | Lines Added | Lines Removed | Commits |
-| -------------------------- | ----------: | ------------: | ------: |
-| Alex Munteanu              |      15,729 |         1,588 |      24 |
-| Andrei Petrea              |      15,647 |         1,646 |      22 |
-| Andrei Săcăluș             |       3,875 |           540 |      20 |
-| Mihai-Lucian Pandelica     |       3,363 |           696 |      11 |
-| Flavius Mazilu             |          88 |            80 |      10 |
-| Cristian-Alexandru Chiriac |          31 |            26 |       3 |
-| **Total**                  |  **38,733** |     **4,576** |  **90** |
+|----------------------------|-------------|---------------|---------|
+| Alex Munteanu              |      14,119 |           206 |       9 |
+| Andrei Petrea              |       1,542 |         1,037 |       8 |
+| Andrei Săcăluș             |         864 |           351 |      10 |
+| Flavius Mazilu             |         657 |            76 |       7 |
+| Mihai-Lucian Pandelica     |       1,594 |           327 |       2 |
+| Cristian-Alexandru Chiriac |         684 |           133 |       4 |
+| **Total**                  |  **19,460** |     **2,130** |  **38** |
 
 Reproduce with:
 
@@ -300,65 +295,68 @@ The script emits the following sections; paste the live output here for the fina
 
 *Why:* baseline volume metric — every other percentage is computed against this denominator.
 
-```text
-Total documents: <N>
-```
+**Total documents:** 15
 
 ### Report 2 — Distribution of medical opinions (`Aviz Medical`)
 
 *Why:* the assignment explicitly asks "how many … are considered Fit". This report breaks down APT / APT CONDITIONAT / INAPT TEMPORAR / INAPT both as absolute counts and as a share of the total.
 
 | Medical Opinion                       | Count | Share |
-| ------------------------------------- | ----: | ----: |
-| APT (Fit)                             |   <…> |  <…>% |
-| APT CONDITIONAT (Fit with conditions) |   <…> |  <…>% |
-| INAPT TEMPORAR (Temporarily Unfit)    |   <…> |  <…>% |
-| INAPT (Unfit)                         |   <…> |  <…>% |
+|---------------------------------------|-------|-------|
+| APT (Fit)                             | 12    | 80.0% |
+| APT CONDITIONAT (Fit with conditions) | 1     | 6.7%  |
+| INAPT TEMPORAR (Temporarily Unfit)    | 1     | 6.7%  |
+| INAPT (Unfit)                         | 1     | 6.7%  |
 
 ### Report 3 — Distribution of control types (`Tip Control`)
 
 *Why:* organisational planning: how much of the workload is recruitment screening (`Angajare`) vs periodic recall (`Periodic`) vs return-to-work (`Reluare`).
 
 | Control Type | Count |
-| ------------ | ----: |
-| Angajare     |   <…> |
-| Periodic     |   <…> |
-| Adaptare     |   <…> |
-| Reluare      |   <…> |
-| Supraveghere |   <…> |
-| Alte         |   <…> |
+|--------------|-------|
+| Angajare     | 1     |
+| Periodic     | 2     |
+| Adaptare     | 3     |
+| Reluare      | 3     |
+| Supraveghere | 4     |
+| Alte         | 2     |
 
 ### Report 4 — Top 5 professions and how many of each are fit (APT)
 
 *Why:* directly answers "how many Profesori are considered Fit". The pipeline groups by `profesie_functie`, counts per group and counts the `aviz_apt = true` subset.
 
-| Profession | Total | Fit (APT) | Fit % |
-| ---------- | ----: | --------: | ----: |
-| <…>        |   <…> |       <…> |  <…>% |
+| Profession  | Total | Fit (APT) | Fit % |
+|-------------|-------|-----------|-------|
+| Operator    | 4     | 2         | 50%   |
+| Profesor    | 3     | 2         | 67%   |
+| Student     | 2     | 2         | 100%  |
+| Manager     | 2     | 2         | 100%  |
+| Programator | 2     | 2         | 100%  |
 
 ### Report 5 — People needing a re-examination in the next 30 days
 
 *Why:* operational alert — answers "how many people need to update their medical check in the next month". Filters on `data_urm_examinari ∈ [now, now+30d]` and orders by closest expiry.
 
-| Person | Profession | Next Exam Date |
-| ------ | ---------- | -------------- |
-| <…>    | <…>        | <YYYY-MM-DD>   |
+_No records with `data_urm_examinari` in the next 30 days._
 
 ### Report 6 — Records per medical unit (top 5)
 
 *Why:* shows where most documents come from — useful when deciding which clinics to integrate with first.
 
 | Medical Unit | Records |
-| ------------ | ------: |
-| <…>          |     <…> |
+|--------------|----------|
+| Clinica Test | 15      |
 
 ### Report 7 (bonus) — Fitness rate per device
 
 *Why:* sanity-checks ingestion devices: a device with a much higher INAPT rate than others may be mis-photographing the certificate so OCR misreads the checkbox.
 
 | Device ID | Total | Fit | Unfit | Fit % |
-| --------- | ----: | --: | ----: | ----: |
-| <…>       |   <…> | <…> |   <…> |  <…>% |
+|-----------|-------|-----|-------|-------|
+| device-1  | 5     | 5   | 0     | 100%  |
+| device-2  | 4     | 3   | 0     | 75%   |
+| device-5  | 4     | 2   | 1     | 50%   |
+| device-3  | 2     | 2   | 0     | 100%  |
 
 ---
 
