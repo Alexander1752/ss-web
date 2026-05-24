@@ -28,6 +28,8 @@ func InitMQTT() error {
 	opts.SetClientID("go-api-" + os.Getenv("HOSTNAME"))
 	opts.SetTLSConfig(tlsConfig)
 	opts.SetAutoReconnect(true)
+	opts.SetCleanSession(false)
+	opts.SetResumeSubs(true)
 
 	MQTTClient = mqtt.NewClient(opts)
 	if token := MQTTClient.Connect(); token.Wait() && token.Error() != nil {
