@@ -102,6 +102,11 @@ func (ctlr PhotoController) DeleteAllPhotos(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	if role, _ := r.Context().Value("role").(string); role != "admin" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	count, err := ctlr.Service.DeleteAllPhotos(r.Context())
 	if err != nil {
 		http.Error(w, "Failed to delete photos", http.StatusInternalServerError)

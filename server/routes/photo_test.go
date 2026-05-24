@@ -276,43 +276,101 @@ func TestPhotoController_DeletePhoto_SuccessToleratesStorageDeleteFailure(t *tes
 	}
 }
 
-func TestPhotoController_DeleteAllPhotos(t *testing.T) {
+func withAdminRole(req *http.Request) *http.Request {
+	return req.WithContext(context.WithValue(req.Context(), "role", "admin"))
+}
+
+func TestPhotoController_DeleteAllPhotos_MethodNotAllowed(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockRepo := mock_domain.NewMockPhotoRepository(ctrl)
-	ctlr := routes.PhotoController{Service: routes.NewPhotoService(mockRepo)}
-
+	ctlr := routes.PhotoController{Service: routes.NewPhotoService(mock_domain.NewMockPhotoRepository(ctrl))}
 	req := httptest.NewRequest(http.MethodGet, "/photos/all", nil)
 	rr := httptest.NewRecorder()
+
 	ctlr.DeleteAllPhotos(rr, req)
+
 	if rr.Code != http.StatusMethodNotAllowed {
-		t.Errorf("expected status %d for method not allowed, got %d", http.StatusMethodNotAllowed, rr.Code)
+		t.Errorf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
 	}
+}
 
-	mockRepo.EXPECT().DeleteAll(gomock.Any()).Return(int64(0), errors.New("db error"))
-	req = httptest.NewRequest(http.MethodDelete, "/photos/all", nil)
-	rr = httptest.NewRecorder()
-	ctlr.DeleteAllPhotos(rr, req)
-	if rr.Code != http.StatusInternalServerError {
-		t.Errorf("expected status %d for delete all failure, got %d", http.StatusInternalServerError, rr.Code)
-	}
+func TestPhotoController_DeleteAllPhotos_AuthorizationCheck(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	t.Setenv("MINIO_ENDPOINT", "")
+	ctlr := routes.PhotoController{Service: routes.NewPhotoService(mock_domain.NewMockPhotoRepository(ctrl))}
 
-	mockRepo.EXPECT().DeleteAll(gomock.Any()).Return(int64(3), nil)
-	req = httptest.NewRequest(http.MethodDelete, "/photos/all", nil)
-	rr = httptest.NewRecorder()
-	ctlr.DeleteAllPhotos(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected status %d for successful delete all, got %d", http.StatusOK, rr.Code)
-	}
+	t.Run("non-admin user is rejected", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodDelete, "/photos/all", nil)
+		req = req.WithContext(context.WithValue(req.Context(), "role", "user"))
+		rr := httptest.NewRecorder()
 
-	var resp map[string]any
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response json: %v", err)
-	}
-	if v, ok := resp["deleted"].(float64); !ok || int64(v) != 3 {
-		t.Fatalf("expected deleted count 3, got %v", resp["deleted"])
-	}
+		ctlr.DeleteAllPhotos(rr, req)
+
+		if rr.Code != http.StatusUnauthorized {
+			t.Errorf("expected status %d, got %d", http.StatusUnauthorized, rr.Code)
+		}
+		if !strings.Contains(rr.Body.String(), "Unauthorized") {
+			t.Errorf("expected 'Unauthorized' in body, got %q", rr.Body.String())
+		}
+	})
+
+	t.Run("missing role in context is rejected", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodDelete, "/photos/all", nil)
+		// no role in context
+		rr := httptest.NewRecorder()
+
+		ctlr.DeleteAllPhotos(rr, req)
+
+		if rr.Code != http.StatusUnauthorized {
+			t.Errorf("expected status %d, got %d", http.StatusUnauthorized, rr.Code)
+		}
+	})
+}
+
+func TestPhotoController_DeleteAllPhotos_Admin(t *testing.T) {
+	t.Run("repository error returns 500", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockRepo := mock_domain.NewMockPhotoRepository(ctrl)
+		ctlr := routes.PhotoController{Service: routes.NewPhotoService(mockRepo)}
+
+		mockRepo.EXPECT().DeleteAll(gomock.Any()).Return(int64(0), errors.New("db error"))
+		req := withAdminRole(httptest.NewRequest(http.MethodDelete, "/photos/all", nil))
+		rr := httptest.NewRecorder()
+
+		ctlr.DeleteAllPhotos(rr, req)
+
+		if rr.Code != http.StatusInternalServerError {
+			t.Errorf("expected status %d, got %d", http.StatusInternalServerError, rr.Code)
+		}
+	})
+
+	t.Run("success returns deleted count", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockRepo := mock_domain.NewMockPhotoRepository(ctrl)
+		ctlr := routes.PhotoController{Service: routes.NewPhotoService(mockRepo)}
+		t.Setenv("MINIO_ENDPOINT", "")
+
+		mockRepo.EXPECT().DeleteAll(gomock.Any()).Return(int64(3), nil)
+		req := withAdminRole(httptest.NewRequest(http.MethodDelete, "/photos/all", nil))
+		rr := httptest.NewRecorder()
+
+		ctlr.DeleteAllPhotos(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+		}
+		var resp map[string]any
+		if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to parse response: %v", err)
+		}
+		if v, ok := resp["deleted"].(float64); !ok || int64(v) != 3 {
+			t.Fatalf("expected deleted count 3, got %v", resp["deleted"])
+		}
+	})
 }
