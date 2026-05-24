@@ -3,11 +3,49 @@ package routes
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
+
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/stretchr/testify/assert"
 )
+
+// Test signing key for JWT token creation
+var testSigningKey = []byte("test-secret-key-for-testing-only")
+
+// createSignedToken creates a valid signed JWT token with the given claims
+func createSignedToken(claims jwt.MapClaims) string {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, _ := token.SignedString(testSigningKey)
+	return tokenString
+}
+
+// createExpiredToken creates an expired JWT token
+func createExpiredToken() string {
+	claims := jwt.MapClaims{
+		"email": "expired@example.com",
+		"exp":   time.Now().Add(-1 * time.Hour).Unix(),
+	}
+	return createSignedToken(claims)
+}
+
+// mockJWKS is a mock implementation of keyfunc.JWKS for testing
+type mockJWKS struct {
+	shouldFail bool
+}
+
+// Keyfunc implements the keyfunc interface
+func (m *mockJWKS) Keyfunc(token *jwt.Token) (interface{}, error) {
+	if m.shouldFail {
+		return nil, errors.New("invalid token")
+	}
+	return testSigningKey, nil
+}
 
 func TestHandleBrokerInfo_GET(t *testing.T) {
 	req := httptest.NewRequest("GET", "/broker-info", nil)
@@ -289,5 +327,181 @@ func TestCORSAndBrokerInfo_Integration(t *testing.T) {
 		if w.Header().Get("Access-Control-Allow-Origin") != "*" {
 			t.Error("missing CORS origin header on OPTIONS response")
 		}
+	})
+}
+
+func TestWithAuth_ValidToken(t *testing.T) {
+	t.Run("sets email and user role in context", func(t *testing.T) {
+		var capturedCtx context.Context
+		innerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			capturedCtx = r.Context()
+			w.WriteHeader(http.StatusOK)
+		})
+
+		claims := jwt.MapClaims{
+			"email": "user@example.com",
+			"exp":   time.Now().Add(1 * time.Hour).Unix(),
+			"realm_access": map[string]interface{}{
+				"roles": []interface{}{"user"},
+			},
+		}
+		tokenString := createSignedToken(claims)
+		req := httptest.NewRequest("GET", "/protected", nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", tokenString))
+		w := httptest.NewRecorder()
+
+		authMiddleware((&mockJWKS{}).Keyfunc, innerHandler).ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "user@example.com", capturedCtx.Value("email"))
+		assert.Equal(t, "user", capturedCtx.Value("role"))
+	})
+
+	t.Run("sets admin role when admin in realm_access", func(t *testing.T) {
+		var capturedRole interface{}
+		innerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			capturedRole = r.Context().Value("role")
+			w.WriteHeader(http.StatusOK)
+		})
+
+		claims := jwt.MapClaims{
+			"email": "admin@example.com",
+			"exp":   time.Now().Add(1 * time.Hour).Unix(),
+			"realm_access": map[string]interface{}{
+				"roles": []interface{}{"user", "admin", "editor"},
+			},
+		}
+		tokenString := createSignedToken(claims)
+		req := httptest.NewRequest("GET", "/protected", nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", tokenString))
+		w := httptest.NewRecorder()
+
+		authMiddleware((&mockJWKS{}).Keyfunc, innerHandler).ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "admin", capturedRole)
+	})
+
+	t.Run("falls back to preferred_username when email missing", func(t *testing.T) {
+		var capturedEmail interface{}
+		innerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			capturedEmail = r.Context().Value("email")
+			w.WriteHeader(http.StatusOK)
+		})
+
+		claims := jwt.MapClaims{
+			"preferred_username": "johndoe",
+			"exp":                time.Now().Add(1 * time.Hour).Unix(),
+		}
+		tokenString := createSignedToken(claims)
+		req := httptest.NewRequest("GET", "/protected", nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", tokenString))
+		w := httptest.NewRecorder()
+
+		authMiddleware((&mockJWKS{}).Keyfunc, innerHandler).ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "johndoe", capturedEmail)
+	})
+
+	t.Run("defaults to user role when no realm_access", func(t *testing.T) {
+		var capturedRole interface{}
+		innerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			capturedRole = r.Context().Value("role")
+			w.WriteHeader(http.StatusOK)
+		})
+
+		claims := jwt.MapClaims{
+			"email": "user@example.com",
+			"exp":   time.Now().Add(1 * time.Hour).Unix(),
+		}
+		tokenString := createSignedToken(claims)
+		req := httptest.NewRequest("GET", "/protected", nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", tokenString))
+		w := httptest.NewRecorder()
+
+		authMiddleware((&mockJWKS{}).Keyfunc, innerHandler).ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "user", capturedRole)
+	})
+}
+
+func TestWithAuth_MissingBearerToken(t *testing.T) {
+	innerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	mock := &mockJWKS{}
+
+	t.Run("no authorization header", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/protected", nil)
+		w := httptest.NewRecorder()
+
+		authMiddleware(mock.Keyfunc, innerHandler).ServeHTTP(w, req)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("authorization header without Bearer prefix", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/protected", nil)
+		req.Header.Set("Authorization", "Basic dXNlcjpwYXNz")
+		w := httptest.NewRecorder()
+
+		authMiddleware(mock.Keyfunc, innerHandler).ServeHTTP(w, req)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("Bearer without token", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/protected", nil)
+		req.Header.Set("Authorization", "Bearer ")
+		w := httptest.NewRecorder()
+
+		authMiddleware(mock.Keyfunc, innerHandler).ServeHTTP(w, req)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+func TestWithAuth_InvalidToken(t *testing.T) {
+	innerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	t.Run("token signed with wrong key", func(t *testing.T) {
+		badToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"email": "user@example.com",
+			"exp":   time.Now().Add(1 * time.Hour).Unix(),
+		})
+		badTokenString, _ := badToken.SignedString([]byte("wrong-key"))
+
+		req := httptest.NewRequest("GET", "/protected", nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", badTokenString))
+		w := httptest.NewRecorder()
+
+		// mockJWKS returns testSigningKey; token was signed with wrong-key → verification fails
+		authMiddleware((&mockJWKS{}).Keyfunc, innerHandler).ServeHTTP(w, req)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("expired token", func(t *testing.T) {
+		tokenString := createExpiredToken()
+		req := httptest.NewRequest("GET", "/protected", nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", tokenString))
+		w := httptest.NewRecorder()
+
+		authMiddleware((&mockJWKS{}).Keyfunc, innerHandler).ServeHTTP(w, req)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("keyfunc returns error", func(t *testing.T) {
+		claims := jwt.MapClaims{
+			"email": "user@example.com",
+			"exp":   time.Now().Add(1 * time.Hour).Unix(),
+		}
+		tokenString := createSignedToken(claims)
+		req := httptest.NewRequest("GET", "/protected", nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", tokenString))
+		w := httptest.NewRecorder()
+
+		authMiddleware((&mockJWKS{shouldFail: true}).Keyfunc, innerHandler).ServeHTTP(w, req)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 }

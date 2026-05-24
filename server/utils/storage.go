@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"net/url"
@@ -19,10 +20,19 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
+type minioClient interface {
+	PutObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64, opts minio.PutObjectOptions) (minio.UploadInfo, error)
+	RemoveObject(ctx context.Context, bucketName, objectName string, opts minio.RemoveObjectOptions) error
+	ListObjects(ctx context.Context, bucketName string, opts minio.ListObjectsOptions) <-chan minio.ObjectInfo
+	PresignedGetObject(ctx context.Context, bucketName, objectName string, expires time.Duration, reqParams url.Values) (*url.URL, error)
+	BucketExists(ctx context.Context, bucketName string) (bool, error)
+	MakeBucket(ctx context.Context, bucketName string, opts minio.MakeBucketOptions) error
+}
+
 var (
 	storageOnce   sync.Once
 	storageErr    error
-	storageS3     *minio.Client
+	storageS3     minioClient
 	storageBucket string
 )
 
