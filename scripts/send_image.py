@@ -101,7 +101,6 @@ def on_connect(client, userdata, flags, rc):
             image_data = create_test_image()
 
         msg_info = client.publish(PHOTO_TOPIC, image_data)
-        msg_info.wait_for_publish()
     else:
         print(f"Failed to connect, return code {rc}")
         sys.exit(1)
