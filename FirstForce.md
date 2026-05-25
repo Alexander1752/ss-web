@@ -136,23 +136,7 @@ docker run --rm -v "$PWD":/workspace anchore/syft:latest \
 
 The data flow has four trust boundaries: **device <-> broker**, **broker <-> services**, **browser <-> NGINX/API**, **API <-> DB/storage**. Threats are listed below using STRIDE.
 
-```
-┌──────────────┐  mTLS 8883  ┌──────────┐  mTLS  ┌──────────┐
-│ ESP32 / Phone│ ──────────> │ Mosquitto│ ─────> │ Go API   │
-└──────────────┘             └──────────┘        └──────────┘
-                                  │                  │
-                                  │ mTLS             │ MongoDB / MinIO
-                                  │                  │
-                              ┌────────┐         ┌────────┐
-                              │ OCR svc│         │ Storage│
-                              └────────┘         └────────┘
-                                                     ^
-                                              OIDC / JWT
-                                                     │
-                                           ┌─────────┴───────┐
-                                           │ Browser (React) │<── Keycloak
-                                           └─────────────────┘
-```
+![Data Flow](./docs/img/data_flow.png "Data Flow")
 
 | #  | STRIDE | Threat                                              | Mitigation in this repo                                                                                                          |
 | -- | ------ | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -335,7 +319,7 @@ The script emits the following sections; paste the live output here for the fina
 
 ### Report 5 — People needing a re-examination in the next 30 days
 
-*Why:* operational alert — answers "how many people need to update their medical check in the next month". Filters on `data_urm_examinari ∈ [now, now+30d]` and orders by closest expiry.
+*Why:* operational alert — answers "how many people need to update their medical check in the next month". Filters on `data_urm_examinari $\in$ [now, now+30d]` and orders by closest expiry.
 
 _No records with `data_urm_examinari` in the next 30 days._
 
