@@ -38,28 +38,32 @@ type mockToken struct {
 	err error
 }
 
-func (t *mockToken) Wait() bool                       { return true }
-func (t *mockToken) WaitTimeout(d time.Duration) bool { return true }
-func (t *mockToken) Error() error                     { return t.err }
-func (t *mockToken) Done() <-chan struct{}            { return nil }
+func (t *mockToken) Wait() bool                                { return true }
+func (t *mockToken) WaitTimeout(_ time.Duration) bool          { return true }
+func (t *mockToken) Error() error                              { return t.err }
+func (t *mockToken) Done() <-chan struct{}                     { return nil }
+func (m *mockMQTTClient) IsConnected() bool                    { return true }
+func (m *mockMQTTClient) IsAutoReconnect() bool                { return true }
+func (m *mockMQTTClient) IsConnectionOpen() bool               { return true }
+func (m *mockMQTTClient) Connect() mqtt.Token                  { return &mockToken{} }
+func (m *mockMQTTClient) Disconnect(uint)                      {}
+func (m *mockMQTTClient) Unsubscribe(...string) mqtt.Token     { return &mockToken{} }
+func (m *mockMQTTClient) AddRoute(string, mqtt.MessageHandler) {}
+func (m *mockMQTTClient) OptionsReader() mqtt.ClientOptionsReader {
+	return mqtt.ClientOptionsReader{}
+}
 
-func (m *mockMQTTClient) IsConnected() bool      { return true }
-func (m *mockMQTTClient) IsAutoReconnect() bool  { return true }
-func (m *mockMQTTClient) IsConnectionOpen() bool { return true }
-func (m *mockMQTTClient) Connect() mqtt.Token    { return &mockToken{} }
-func (m *mockMQTTClient) Disconnect(uint)        {}
 func (m *mockMQTTClient) Publish(string, byte, bool, interface{}) mqtt.Token {
 	return &mockToken{}
 }
+
 func (m *mockMQTTClient) Subscribe(string, byte, mqtt.MessageHandler) mqtt.Token {
 	return &mockToken{}
 }
+
 func (m *mockMQTTClient) SubscribeMultiple(map[string]byte, mqtt.MessageHandler) mqtt.Token {
 	return &mockToken{}
 }
-func (m *mockMQTTClient) Unsubscribe(...string) mqtt.Token        { return &mockToken{} }
-func (m *mockMQTTClient) AddRoute(string, mqtt.MessageHandler)    {}
-func (m *mockMQTTClient) OptionsReader() mqtt.ClientOptionsReader { return mqtt.ClientOptionsReader{} }
 
 // createPNGImage creates a valid PNG image payload
 func createPNGImage() []byte {
@@ -129,7 +133,7 @@ func TestBrokerHandler_HandlePhoto(t *testing.T) {
 			topic:       "ssproject/images/device456",
 			payload:     []byte("invalid image data"),
 			shouldError: true,
-			setupMocks: func(mockPhoto *mock_domain.MockPhotoRepository, mockDevice *mock_domain.MockDeviceRepository) {
+			setupMocks: func(_ *mock_domain.MockPhotoRepository, mockDevice *mock_domain.MockDeviceRepository) {
 				mockDevice.EXPECT().
 					GetByID(gomock.Any(), "device456").
 					Return(&domain.Device{DeviceID: "device456", DeviceName: "Device 456"}, nil)
@@ -140,7 +144,7 @@ func TestBrokerHandler_HandlePhoto(t *testing.T) {
 			topic:       "ssproject/images/device789",
 			payload:     validImage,
 			shouldError: true,
-			setupMocks: func(mockPhoto *mock_domain.MockPhotoRepository, mockDevice *mock_domain.MockDeviceRepository) {
+			setupMocks: func(_ *mock_domain.MockPhotoRepository, mockDevice *mock_domain.MockDeviceRepository) {
 				mockDevice.EXPECT().
 					GetByID(gomock.Any(), "device789").
 					Return(nil, mongo.ErrClientDisconnected)
@@ -156,7 +160,6 @@ func TestBrokerHandler_HandlePhoto(t *testing.T) {
 			tt.setupMocks(mockPhoto, mockDevice)
 
 			b := broker.NewBrokerHandlerWithRepos(mockPhoto, mockDevice)
-
 			msg := &mockMessage{
 				topic:   tt.topic,
 				payload: tt.payload,
@@ -173,13 +176,13 @@ func TestBrokerHandler_RegisterDevice(t *testing.T) {
 		name       string
 		topic      string
 		payload    []byte
-		setupMocks func(*mock_domain.MockDeviceRepository)
+		setupMocks func(*testing.T, *mock_domain.MockDeviceRepository)
 	}{
 		{
 			name:    "new device with json payload is saved",
 			topic:   "register/device-1",
 			payload: []byte(`{"name":"Camera 1","ip":"192.168.1.10","port":"1883"}`),
-			setupMocks: func(mockDevice *mock_domain.MockDeviceRepository) {
+			setupMocks: func(t *testing.T, mockDevice *mock_domain.MockDeviceRepository) {
 				mockDevice.EXPECT().
 					GetByID(gomock.Any(), "device-1").
 					Return(nil, mongo.ErrNoDocuments)
@@ -212,7 +215,7 @@ func TestBrokerHandler_RegisterDevice(t *testing.T) {
 			name:    "new device with plain text payload uses payload as name",
 			topic:   "register/device-2",
 			payload: []byte("Camera Two"),
-			setupMocks: func(mockDevice *mock_domain.MockDeviceRepository) {
+			setupMocks: func(t *testing.T, mockDevice *mock_domain.MockDeviceRepository) {
 				mockDevice.EXPECT().
 					GetByID(gomock.Any(), "device-2").
 					Return(nil, mongo.ErrNoDocuments)
@@ -233,7 +236,7 @@ func TestBrokerHandler_RegisterDevice(t *testing.T) {
 			name:    "existing device is updated",
 			topic:   "register/device-3",
 			payload: []byte(`{"name":"Camera 3","ip":"10.0.0.3","port":"8883"}`),
-			setupMocks: func(mockDevice *mock_domain.MockDeviceRepository) {
+			setupMocks: func(t *testing.T, mockDevice *mock_domain.MockDeviceRepository) {
 				mockDevice.EXPECT().
 					GetByID(gomock.Any(), "device-3").
 					Return(&domain.Device{DeviceID: "device-3", DeviceName: "Old Camera"}, nil)
@@ -263,7 +266,7 @@ func TestBrokerHandler_RegisterDevice(t *testing.T) {
 			name:    "get by id error stops registration",
 			topic:   "register/device-4",
 			payload: []byte(`{"name":"Camera 4"}`),
-			setupMocks: func(mockDevice *mock_domain.MockDeviceRepository) {
+			setupMocks: func(_ *testing.T, mockDevice *mock_domain.MockDeviceRepository) {
 				mockDevice.EXPECT().
 					GetByID(gomock.Any(), "device-4").
 					Return(nil, errors.New("db unavailable"))
@@ -273,7 +276,7 @@ func TestBrokerHandler_RegisterDevice(t *testing.T) {
 			name:    "save error is handled without panic",
 			topic:   "register/device-5",
 			payload: []byte(`{"name":"Camera 5"}`),
-			setupMocks: func(mockDevice *mock_domain.MockDeviceRepository) {
+			setupMocks: func(_ *testing.T, mockDevice *mock_domain.MockDeviceRepository) {
 				mockDevice.EXPECT().
 					GetByID(gomock.Any(), "device-5").
 					Return(nil, mongo.ErrNoDocuments)
@@ -286,7 +289,7 @@ func TestBrokerHandler_RegisterDevice(t *testing.T) {
 			name:    "update error is handled without panic",
 			topic:   "register/device-6",
 			payload: []byte(`{"name":"Camera 6"}`),
-			setupMocks: func(mockDevice *mock_domain.MockDeviceRepository) {
+			setupMocks: func(_ *testing.T, mockDevice *mock_domain.MockDeviceRepository) {
 				mockDevice.EXPECT().
 					GetByID(gomock.Any(), "device-6").
 					Return(&domain.Device{DeviceID: "device-6"}, nil)
@@ -303,7 +306,7 @@ func TestBrokerHandler_RegisterDevice(t *testing.T) {
 
 			mockPhoto := mock_domain.NewMockPhotoRepository(ctrl)
 			mockDevice := mock_domain.NewMockDeviceRepository(ctrl)
-			tt.setupMocks(mockDevice)
+			tt.setupMocks(t, mockDevice)
 
 			b := broker.NewBrokerHandlerWithRepos(mockPhoto, mockDevice)
 			msg := &mockMessage{
