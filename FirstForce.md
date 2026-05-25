@@ -2,11 +2,11 @@
 
 ---
 
-## 1. Cover Page
+## 1. Introduction
 
 **Project title:** ss-web — Web platform for capturing, OCR-processing and analysing medical fitness records (Fișa de aptitudine medicală) over MQTT
 
-**Team name:** FirstForce (team LF4A)
+**Team name:** LF4A
 
 **Repository:** https://github.com/Alexander1752/ss-web
 
@@ -19,7 +19,7 @@
 | Andrei Săcăluș               | repository layer, photo/device routes, MinIO/S3 storage  |
 | Mihai-Lucian Pandelica       | Backend / Keycloak integration — JWT validation, realm config, statistics    |
 | Flavius Mazilu               | Security & compliance — SBOM pipeline, CodeQL, OSSF criticality score        |
-| Cristian-Alexandru Chiriac   | Security — e.g. `SECURITY.md`, vulnerability triage                       |
+| Cristian-Alexandru Chiriac   | Security — e.g. `SECURITY.md`, vulnerability triage, QA                   |
 
 
 ## 2. Project Summary
@@ -44,7 +44,7 @@ Computed with the official **`ossf/criticality_score`** CLI against the repo's `
 
 ---
 
-## 3. Functionality, Documentation, Execution (2.25 p)
+## 3. Functionality, Documentation, Execution
 
 ### 3.1 Working features
 
@@ -77,42 +77,51 @@ python3 scripts/send_image.py path/to/medical-cert.jpg
 xdg-open https://localhost          # Photos / Statistics pages
 ```
 
-Suggested screenshots to include in the final PDF (place under `docs/screenshots/` and reference here):
+### 3.2 Application Screenshots
 
-1. Keycloak login page after redirect from the frontend.
-2. Photos page with the OCR-extracted text under one card.
-3. Statistics page showing both *Control Type Distribution* (bar) and *Medical Opinion Results* (pie).
-4. Devices page listing connected MQTT devices with their mode (Normal/Live).
-5. The frontend NGINX padlock + HTTPS certificate panel.
+| ![Login Page](docs/screenshots/login.png?raw=true "Login Page")
+|:--:|
+| Login Page
 
-### 3.2 Developer & user documentation
+| ![Light VS Dark Mode](docs/screenshots/light-dark.png?raw=true "Light VS Dark Mode")
+|:--:|
+| Light VS Dark Mode
+
+| ![Photo with OCR-extracted Text](docs/screenshots/ocr.png?raw=true "Photo with OCR-extracted Text")
+|:--:|
+| Photo with OCR-extracted Text
+
+| ![Devices Page](docs/screenshots/devices.png?raw=true "Devices Page")
+|:--:|
+| Devices Page
+
+### 3.3 Developer & user documentation
 
 | Doc                                | Audience       | Contents                                                                                  |
 | ---------------------------------- | -------------- | ----------------------------------------------------------------------------------------- |
 | `README.md` (root)                 | Developers     | Architecture, technology stack, setup, debugging, scripts, MQTT config, stats page         |
-| `Lab1_Documentation.md`            | Lab attendees  | Step-by-step image-capture lab walk-through                                               |
 | `assignment.md`                    | Reviewers      | Detailed Keycloak feature proposal (threat model & rationale)                             |
 | `client/README.md`                 | Frontend devs  | Frontend-specific Vite/Yarn commands                                                      |
 | `SECURITY.md`                      | Reporters      | Disclosure policy, contact, scope                                                         |
 | `medical-images/README.md`         | Operators      | How to drop a folder of certificates and upload them via `scripts/upload_folder.py`        |
 | `original_pike.yml`                | Evaluators     | Default OSSF criticality-score weights                                                    |
 
-### 3.3 CI/CD evidence
+### 3.4 CI/CD
 
 GitHub Actions workflows live in `.github/workflows/`:
 
 | Workflow             | Trigger                                                | What it does                                                                                                 |
 | -------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
 | `ci.yml`             | push + PR on `master`                                  | Installs tesseract/leptonica, **builds Go API**, runs **`go test -coverprofile`**, lints + builds the React client, **builds the API Docker image**, **generates a CycloneDX SBOM**, commits SBOM back on PR. |
-| `codeql.yml`         | push + PR on `master`, weekly Friday 05:28 UTC         | CodeQL static analysis for **actions, go, javascript-typescript, python**.                                   |
-| `criticality-score.yml` | push + PR on `master`, weekly Monday 00:00 UTC, manual | Installs `criticality_score`, runs it with `-scoring-config original_pike.yml`, uploads JSON as artifact.   |
+| `codeql.yml`         | push + PR on `master`, weekly on Friday                | CodeQL static analysis for **actions, go, javascript-typescript, python**.                                   |
+| `criticality-score.yml` | push + PR on `master`, weekly on Monday, manual        | Installs `criticality_score`, runs it with `-scoring-config original_pike.yml`, uploads JSON as artifact.   |
 
 CI artifacts uploaded on every run (downloadable from the Actions tab):
 - `go-test-results` — verbose `go test` output;
 - `go-coverage` — `coverage.out`;
 - `criticality-score-result` — JSON containing the default Rob-Pike score.
 
-A green `CI` badge is displayed at the top of `README.md`. Dependabot is enabled (commit `9dd62c6 Fix multiple Dependabot alerts`); Renovate is configured via `renovate.json`.
+A green `CI` badge is displayed at the top of `README.md`. Dependabot is enabled; renovate is configured via `renovate.json`.
 
 **Local execution steps:**
 
@@ -130,28 +139,28 @@ docker run --rm -v "$PWD":/workspace anchore/syft:latest \
 
 ---
 
-## 4. Security & Compliance (0.75 p)
+## 4. Security & Compliance
 
-### 4.1 Threat Modelling & Mitigations (0.15 p)
+### 4.1 Threat Modelling & Mitigations
 
 The data flow has four trust boundaries: **device <-> broker**, **broker <-> services**, **browser <-> NGINX/API**, **API <-> DB/storage**. Threats are listed below using STRIDE.
 
 ```
-┌──────────────┐  mTLS 8883  ┌──────────┐  mTLS  ┌──────────┐
-│ ESP32 / Phone│ ──────────> │ Mosquitto│ ─────> │ Go API   │
-└──────────────┘             └──────────┘        └──────────┘
-                                  │                  │
-                                  │ mTLS             │ MongoDB / MinIO
-                                  │                  │
-                              ┌────────┐         ┌────────┐
-                              │ OCR svc│         │ Storage│
-                              └────────┘         └────────┘
-                                                     ^
-                                              OIDC / JWT
-                                                     │
-                                           ┌─────────┴───────┐
-                                           │ Browser (React) │<── Keycloak
-                                           └─────────────────┘
+┌───────────────┐  mTLS 8883  ┌───────────┐  mTLS  ┌────────┐
+│ ESP32 / Phone │ ──────────> │ Mosquitto │ ─────> │ Go API │
+└───────────────┘             └───────────┘        └────────┘
+                                    │                  │
+                                    │ mTLS             │ MongoDB / MinIO
+                                    │                  │
+                                ┌─────────┐       ┌─────────┐
+                                │ OCR svc │       │ Storage │
+                                └─────────┘       └─────────┘
+                                                       ^
+                                                  OIDC / JWT
+                                                       │
+                                             ┌─────────┴───────┐
+                                 Keycloak ──>│ Browser (React) │
+                                             └─────────────────┘
 ```
 
 | #  | STRIDE | Threat                                              | Mitigation in this repo                                                                                                          |
@@ -166,7 +175,7 @@ The data flow has four trust boundaries: **device <-> broker**, **broker <-> ser
 | T8 | S      | Attacker registers themselves as `admin` in Keycloak | Self-registration disabled by default in realm import; admin role grant only via `scripts/assign-admin-role.sh`                  |
 | T9 | T      | Malicious dependency update                          | Dependabot + Renovate watch the manifest files; CodeQL analyses every push                                                       |
 
-### 4.2 MISRA / CERT Compliance (0.15 p)
+### 4.2 MISRA / CERT Compliance
 
 The codebase is Go, TypeScript and Python, so MISRA-C is N/A. The applicable analogs are **CERT-Go** + **CERT-Oracle / OWASP** for the API, and **CERT-Python** for the OCR service. Static analysis used:
 
@@ -187,9 +196,9 @@ codeql database create db-go --language=go --command="go build ./..." --source-r
 codeql database analyze db-go codeql/go-queries --format=sarif-latest --output=go.sarif
 ```
 
-### 4.3 Testing & Coverage (0.15 p)
+### 4.3 Testing & Coverage
 
-Tests live alongside the code in `server/**/_test.go`. Suites currently shipped:
+Tests live alongside the code in `server/**/*_test.go`. Suites currently shipped:
 
 - `server/broker/broker_test.go` — MQTT message handlers
 - `server/repository/*_test.go` — Mongo repos for devices, photos, users
@@ -218,7 +227,7 @@ The CI captures `coverage.out` as an artifact (`go-coverage`).
 
 **Fuzzing.** The medical parser is an obvious fuzzing target because it consumes OCR output. The current suite does not yet include `go test -fuzz`; this is a flagged follow-up for the security backlog.
 
-### 4.4 SBOM & Dependencies (0.10 p)
+### 4.4 SBOM & Dependencies
 
 A **CycloneDX 1.x** SBOM is generated by [`anchore/sbom-action`](https://github.com/anchore/sbom-action) on every PR (`ci.yml::Generate SBOM`) and committed back to the PR branch by `stefanzweifel/git-auto-commit-action`. The current artifact is `sbom.cyclonedx.json` at the repo root and contains **535 components** spanning Go modules and npm packages.
 
@@ -231,27 +240,6 @@ docker run --rm -v "$PWD":/work anchore/grype:latest sbom:/work/sbom.cyclonedx.j
 
 Dependabot / Renovate flag CVE-affected versions automatically; commit `9dd62c6` rolls up the latest batch.
 
-### 4.5 Fixing Own Vulnerabilities (0.10 p)
-
-Concrete fixes already merged on `master`:
-
-| Commit    | Issue addressed                                                            |
-| --------- | -------------------------------------------------------------------------- |
-| `4a842fb` | `CVE-2025-69873` — vulnerable transitive dep replaced                      |
-| `d87303e` | `paho-mqtt` vulnerability fixed (Python OCR side)                          |
-| `1e54f00` | `npm audit fix` rollup on the client                                       |
-| `22ebbdd` | Replaced placeholder auth with **real JWT verification** against Keycloak  |
-| `b1d233c` | Fixed broken logout flow that left stale Keycloak sessions                  |
-| `9dd62c6` | Multiple Dependabot alerts resolved in one batch                            |
-
-### 4.6 Reporting Peer Issues (0.10 p)
-
-> _Paste the link(s) to issue(s) you opened against another team's repository here, with a one-line description of each._
-
-Example template:
-
-> - https://github.com/team-X/their-repo/issues/42 — Missing `Strict-Transport-Security` header on login endpoint; confirmed exploitable via SSL-strip on the lab Wi-Fi.
-
 ---
 
 ## 5. Team Contributions
@@ -260,13 +248,13 @@ Generated from `git log --all --numstat` with the alias mapping in `scripts/git_
 
 | Team Member                | Lines Added | Lines Removed | Commits |
 |----------------------------|-------------|---------------|---------|
-| Alex Munteanu              |      14,119 |           206 |       9 |
-| Andrei Petrea              |       1,542 |         1,037 |       8 |
-| Andrei Săcăluș             |         864 |           351 |      10 |
-| Flavius Mazilu             |         657 |            76 |       7 |
-| Mihai-Lucian Pandelica     |       1,594 |           327 |       2 |
-| Cristian-Alexandru Chiriac |         684 |           133 |       4 |
-| **Total**                  |  **19,460** |     **2,130** |  **38** |
+| Andrei Petrea              |       2,640 |         1,389 |      15 |
+| Andrei Săcăluș             |       5,340 |           618 |       8 |
+| Cristian-Alexandru Chiriac |         762 |           210 |       8 |
+| Flavius Mazilu             |         681 |            78 |       7 |
+| Alexandru Munteanu         |       2,268 |           982 |       7 |
+| Mihai-Lucian Pandelica     |       5,129 |           630 |       5 |
+| **Total**                  |  **16,280** |     **3,907** |  **50** |
 
 Reproduce with:
 
@@ -275,7 +263,7 @@ Reproduce with:
 python3 scripts/git_contributions.py
 ```
 
-> Note: the `git_contributions.py` in the repo ships with an empty `EMAIL_TO_NAME` mapping — populate it with the canonical entries used above (e.g. `alexandru9b@gmail.com → Alex Munteanu`) before running.
+> Note: the `git_contributions.py` in the repo ships with an empty `EMAIL_TO_NAME` mapping — populate it with the proper entries before running.
 
 ---
 

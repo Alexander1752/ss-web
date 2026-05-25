@@ -374,44 +374,6 @@ Există două modalități de a șterge imaginile din aplicație:
 
 ---
 
-## Task-uri Practice pentru Laborator
-
-### Task 1: Testare trimitere imagine prin script (obligatoriu)
-
-1. Pornește aplicația web (`./start.sh`)
-2. Deschide un terminal și navighează în folderul proiectului
-3. Rulează scriptul de trimitere imagini:
-   ```bash
-   python3 scripts/send_image.py /cale/catre/o/imagine.jpg
-   ```
-4. Accesează pagina **Photos** în browser și verifică că imaginea a apărut
-5. Verifică textul extras prin OCR (dacă imaginea conține text)
-
-**Livrabil:** Screenshot cu imaginea încărcată vizibilă în pagina Photos
-
-### Task 2: Explorare și analiză statistici (opțional - pentru timp suplimentar)
-
-1. Încarcă mai multe imagini folosind `send_image.py` (repetă de mai multe ori):
-   ```bash
-   python3 scripts/send_image.py /cale/catre/imagine1.jpg
-   python3 scripts/send_image.py /cale/catre/imagine2.jpg
-   ```
-2. Accesează pagina **Statistics**
-3. Modifică intervalul de date și observă cum se schimbă graficele
-4. Schimbă tipul graficului între **Bar** și **Pie** pentru ambele categorii
-5. Notează câte documente sunt în fiecare categorie de aviz medical
-
-**Livrabil:** Screenshot cu pagina Statistics afișând ambele grafice
-
----
-
-## Suport
-
-Pentru probleme sau întrebări, consultați:
-
-- Documentația MQTT: https://mqtt.org/
-- Documentația proiectului în `client/README.md`
-
 ## Controale Camera ESP (în pagina Photos)
 
 În partea de sus a paginii Photos există controale pentru camera ESP (pentru Lab-ul de ESP):
