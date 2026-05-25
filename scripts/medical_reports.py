@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 import pymongo
 import os
 
-MONGO_URI = f"mongodb://admin:supersecret@{os.environ.get("MONGO_HOST", "127.0.0.1"}:{os.environ.get("MONGO_PORT", "27015"}/?authSource=admin"
+MONGO_URI = f"mongodb://admin:supersecret@{os.environ.get('MONGO_HOST', '127.0.0.1')}:{os.environ.get('MONGO_PORT', '27015')}/?authSource=admin"
 DB_NAME = "mqtt-streaming-server"
 COLLECTION_NAME = "photos"
 
