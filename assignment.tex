@@ -1,0 +1,213 @@
+\documentclass[conference]{IEEEtran}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+
+\title{SecureAccess: Keycloak Integration for Centralized Authentication and Authorization in \texttt{ss-web}}
+
+\author{
+\IEEEauthorblockN{Student Team}
+\IEEEauthorblockA{
+Master Program Project \\
+Systems Security \\
+Replace with student names and institutional e-mail addresses
+}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This paper proposes the integration of Keycloak into the \texttt{ss-web} application as a new feature that provides centralized authentication and role-based authorization. The current project already includes protected functional areas such as photo management, device control, and statistics visualization, but its authentication flow is still incomplete and partially based on placeholder logic. The proposed feature replaces custom and temporary authentication behavior with a standards-based identity solution built on OpenID Connect and OAuth 2.0. The paper explains the feature, motivates its necessity, presents a feasible technical implementation for the existing React and Go architecture, and evaluates the expected impact on performance and security. The conclusion is that Keycloak is an appropriate and high-value feature for a web application that processes uploaded images, OCR-extracted information, device metadata, and medical-document-related statistics.
+\end{abstract}
+
+\section{Introduction}
+
+The \texttt{ss-web} project is a web application that receives images from devices through MQTT, processes them using OCR, stores relevant information, and exposes interfaces for browsing images, viewing connected devices, and analyzing statistics. Because the application handles operational data and potentially sensitive medical-document-related information, secure access control is essential.
+
+At the moment, the project contains the structure of an authentication system, including login and registration pages in the React frontend and user routes in the Go backend, but the implementation is still incomplete. The frontend authentication context uses placeholder behavior, protected routes are effectively bypassed, and the backend still contains provisional authentication middleware. This creates a mismatch between the application's functional maturity and its actual security posture.
+
+To address this issue, this paper proposes the integration of Keycloak as a centralized identity and access management solution.
+
+\section{Feature Name}
+
+The proposed feature is named \textbf{SecureAccess: Centralized Authentication and Role-Based Authorization with Keycloak}.
+
+\section{General Feature Description}
+
+\subsection{What the Feature Does}
+
+The proposed feature integrates Keycloak into the \texttt{ss-web} platform and delegates user authentication to it. Instead of relying on locally implemented login logic and placeholder tokens, the application redirects users to a secure Keycloak login flow. After successful authentication, Keycloak issues signed tokens that the frontend uses for API requests and that the backend verifies before granting access to protected resources.
+
+The feature also enables role-based authorization. Different categories of users can receive different permissions depending on their role. For example, regular users may only view photos and statistics, while administrators may also access device management operations or other privileged controls.
+
+\subsection{How It Improves the Application}
+
+This feature improves the application in several ways:
+
+\begin{itemize}
+\item It replaces temporary authentication logic with a production-oriented identity solution.
+\item It centralizes user and session management in a dedicated security platform.
+\item It allows the application to scale to more users, more roles, and more clients without repeatedly rewriting authentication logic.
+\item It improves the user experience through consistent login, session handling, logout, optional password reset, and possible multi-factor authentication.
+\end{itemize}
+
+Since the project already exposes protected functionality such as photo access, device control, and statistics dashboards, the addition of a robust authentication layer strengthens the application without changing its core purpose.
+
+\section{Necessity Argumentation}
+
+\subsection{Why the Feature Is Useful for Users}
+
+The feature is useful because the application is not a public, anonymous platform. Users interact with uploaded images, OCR-extracted text, device information, and statistics derived from processed documents. Some of this information may be sensitive and should only be available to authenticated users with the correct permissions.
+
+From the user perspective, Keycloak brings a more reliable and professional access flow. Users gain:
+
+\begin{itemize}
+\item secure login with verified sessions;
+\item predictable access rules across application pages;
+\item lower risk of unauthorized access to images, reports, or device commands;
+\item future compatibility with stronger security mechanisms such as MFA.
+\end{itemize}
+
+\subsection{Problems Solved by the Feature}
+
+The proposed feature addresses several concrete problems already visible in the current system.
+
+\textbf{Incomplete authentication implementation.} The current frontend authentication context still uses placeholder values, and route protection is not fully enforced. As a result, the platform behaves as though authentication exists, while actual identity verification is missing. Keycloak replaces this temporary behavior with a real authentication lifecycle.
+
+\textbf{Weak access control for sensitive data.} The application handles uploaded images, OCR results, and medical-document-related statistics. Without strong authentication and authorization, unauthorized users could access data that should remain restricted. Keycloak ensures that access decisions are based on signed tokens and server-side role checks.
+
+\textbf{Manual security complexity.} A custom authentication system would require the team to handle password policies, hashing, reset flows, token generation, token expiration, revocation, brute-force protection, session handling, and auditability. Implementing all of these correctly is difficult in a student project. Keycloak already provides these capabilities.
+
+\textbf{Limited extensibility.} The current application already spans multiple components: React frontend, Go backend, MongoDB, MQTT broker, and external device interaction. As the project grows, a homegrown authentication solution becomes harder to maintain. Keycloak provides a more scalable foundation.
+
+\subsection{Integration Into the Existing Usage Flow}
+
+The feature integrates naturally into the current application flow:
+
+\begin{enumerate}
+\item The user opens the \texttt{ss-web} frontend.
+\item If the user navigates only through public areas, the application remains accessible as usual.
+\item When the user requests a protected page such as \texttt{/photos}, \texttt{/devices}, or \texttt{/statistics}, the frontend checks for a valid Keycloak session.
+\item If no session exists, the user is redirected to the Keycloak login page.
+\item After successful authentication, Keycloak redirects the user back to the frontend with valid OIDC tokens.
+\item The frontend uses the access token when calling the Go API.
+\item The backend validates the token and authorizes the request based on roles.
+\item Logging out ends both the local application session and the Keycloak session.
+\end{enumerate}
+
+This integration fits the current architecture well because the frontend and backend are already separated, which is exactly the type of environment in which an identity provider such as Keycloak is effective.
+
+\section{Technical Justification}
+
+\subsection{Implementation Approach}
+
+The recommended implementation is based on the \textbf{OAuth 2.0 Authorization Code Flow with PKCE}, which is the standard secure choice for modern single-page applications.
+
+On the frontend side, the React application can integrate with Keycloak by using the official \texttt{keycloak-js} adapter or an OIDC-compatible React library. The current \texttt{AuthContext} can be refactored to expose authentication state, current access token, parsed user roles, and login or logout methods. Protected routes can then use real session checks instead of placeholder logic.
+
+On the backend side, the Go API should replace its provisional \texttt{noAuth} middleware with a real authentication middleware that validates Keycloak-issued JWT access tokens. This middleware would:
+
+\begin{itemize}
+\item read the \texttt{Authorization: Bearer <token>} header;
+\item verify the token signature;
+\item validate issuer, audience, and expiration;
+\item extract claims such as e-mail, username, and role membership;
+\item store identity and authorization data in the request context.
+\end{itemize}
+
+Keycloak itself can be deployed in Docker Compose, alongside the existing frontend, backend, MongoDB, and MQTT broker services.
+
+\subsection{Technologies, APIs, and Algorithms}
+
+The implementation can rely on the following technologies and mechanisms:
+
+\begin{itemize}
+\item Keycloak as the identity provider and authorization server;
+\item OpenID Connect for authentication;
+\item OAuth 2.0 Authorization Code Flow with PKCE;
+\item JWT access tokens signed with RS256;
+\item JWKS public-key discovery for token verification;
+\item React and TypeScript integration through \texttt{keycloak-js} or similar OIDC libraries;
+\item Go middleware for request authentication and role-based authorization;
+\item Docker Compose for repeatable local deployment.
+\end{itemize}
+
+Additional Keycloak capabilities are also relevant:
+
+\begin{itemize}
+\item realm roles and client roles for role-based access control;
+\item self-registration, e-mail verification, and password reset;
+\item MFA through OTP or additional second factors;
+\item user federation for possible future institutional integration;
+\item centralized session management and logout.
+\end{itemize}
+
+\subsection{Main Technical Challenges}
+
+\textbf{Challenge 1: Replacing the current login and register flow.} The current application includes local login and registration pages and backend user endpoints. With Keycloak, authentication should move to the identity provider, while the application keeps only domain-specific user metadata if needed.
+
+\textbf{Mitigation.} The cleanest approach is to treat Keycloak as the source of identity and keep local persistence only for application-specific profile data that is not part of authentication itself.
+
+\textbf{Challenge 2: Consistent token validation and role mapping.} The backend must validate the same claims that the frontend expects and must enforce roles correctly on all sensitive endpoints.
+
+\textbf{Mitigation.} A shared authorization model should be defined. For instance, an \texttt{admin} role can be required for device-control actions, while a \texttt{user} role can be sufficient for viewing photos or statistics.
+
+\textbf{Challenge 3: Secure token handling in the browser.} If tokens are stored insecurely, the application remains exposed to token theft through XSS or browser leaks.
+
+\textbf{Mitigation.} The application should prefer short-lived access tokens, careful refresh handling, secure rendering practices, and a strong Content Security Policy. If the architecture evolves further, a backend-for-frontend pattern with secure cookies could also be considered.
+
+\textbf{Challenge 4: Operational complexity.} Adding Keycloak means extra configuration such as realms, clients, redirect URIs, roles, and environment variables.
+
+\textbf{Mitigation.} This complexity can be managed by versioning the local configuration, documenting the required setup, and keeping the Docker-based environment reproducible.
+
+\section{Impact on Performance and Security}
+
+\subsection{Performance Impact}
+
+The performance impact of the feature is acceptable for this type of application. Authentication introduces an additional redirection step to Keycloak when the user logs in, but this happens only when a session must be created or renewed. After login, the backend can validate JWT tokens locally using Keycloak's public keys, which is efficient and avoids repeated password checks or extra database queries on every request.
+
+The main performance costs are:
+
+\begin{itemize}
+\item an additional service in the deployment stack;
+\item CPU and memory usage for Keycloak itself;
+\item periodic token refresh traffic;
+\item small overhead for initial OIDC and JWKS discovery.
+\end{itemize}
+
+These effects can be mitigated through metadata caching, efficient verification middleware, proper resource allocation for Keycloak, and avoiding token introspection on every request unless absolutely necessary.
+
+\subsection{Security Risks and Mitigations}
+
+Although Keycloak improves the security baseline significantly, integration mistakes can still introduce vulnerabilities.
+
+\textbf{Misconfigured redirect URIs.} If redirect URIs are too permissive, attackers may abuse the login flow or capture tokens.
+
+\textbf{Mitigation.} Only explicit trusted origins and redirect URIs should be configured.
+
+\textbf{Token theft in the frontend.} Unsafely stored tokens can be stolen through XSS.
+
+\textbf{Mitigation.} Use short-lived tokens, careful storage strategy, secure coding practices, and Content Security Policy headers.
+
+\textbf{Incorrect role enforcement.} If authorization is enforced only in the frontend, attackers may still call backend endpoints directly.
+
+\textbf{Mitigation.} The backend must be the real enforcement point for role checks on all sensitive routes.
+
+\textbf{Improper token validation.} Accepting tokens without checking issuer, audience, or expiration would create a severe vulnerability.
+
+\textbf{Mitigation.} The backend middleware must validate signature, issuer, audience, expiration, and relevant claims before processing the request.
+
+\textbf{Availability dependency on Keycloak.} If Keycloak becomes unavailable, users may be unable to authenticate.
+
+\textbf{Mitigation.} Health checks, persistent storage, configuration backups, and documented recovery procedures should be included in deployment planning.
+
+\section{Conclusion}
+
+The integration of Keycloak into \texttt{ss-web} is a strong and realistic feature proposal because it solves a current weakness of the project while also preparing the platform for future growth. It improves authentication quality, enables role-based access control, reduces the amount of custom security code required in the application, and aligns the project with modern web security standards.
+
+Because the project already includes protected pages, user flows, and backend endpoints that expect authenticated access, Keycloak fits naturally into the existing architecture. For an application that processes uploaded images, OCR-extracted data, device-management actions, and medical-document-related statistics, this feature provides both immediate practical value and long-term architectural benefits.
+
+\end{document}

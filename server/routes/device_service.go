@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 
@@ -13,11 +14,27 @@ import (
 // ErrInvalidCommand is returned when an unrecognised camera command is requested.
 var ErrInvalidCommand = errors.New("invalid command")
 
+// ErrInvalidDeviceID is returned when a device ID contains characters that are
+// unsafe in MQTT topics (/, +, # or anything outside [a-zA-Z0-9_-]).
+var ErrInvalidDeviceID = errors.New("invalid device ID")
+
+// ErrInvalidMode is returned when the requested mode is not in the allowed list.
+var ErrInvalidMode = errors.New("invalid mode")
+
 var validCommands = map[string]bool{
 	"CAPTURE":    true,
 	"START-LIVE": true,
 	"STOP-LIVE":  true,
 }
+
+var validModes = map[string]bool{
+	"LIVE":   true,
+	"NORMAL": true,
+}
+
+// deviceIDRegex allows only alphanumeric characters, hyphens, and underscores,
+// preventing injection of MQTT wildcard characters (+, #) and topic separators (/).
+var deviceIDRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
 // DeviceService contains the business logic for device operations.
 type DeviceService struct {
@@ -36,7 +53,15 @@ func (s *DeviceService) ListDevices(ctx context.Context) ([]*domain.Device, erro
 }
 
 // SwitchMode publishes a mode-change command to the device-specific MQTT setup topic.
+// Returns ErrInvalidDeviceID if deviceID contains unsafe characters, ErrInvalidMode if
+// mode is not one of the allowed values.
 func (s *DeviceService) SwitchMode(deviceID, mode string) error {
+	if !deviceIDRegex.MatchString(deviceID) {
+		return fmt.Errorf("%w: %q", ErrInvalidDeviceID, deviceID)
+	}
+	if !validModes[mode] {
+		return fmt.Errorf("%w: %q", ErrInvalidMode, mode)
+	}
 	topic := fmt.Sprintf("setup/%s", deviceID)
 	token := s.MqttClient.Publish(topic, 0, false, "start "+mode)
 	token.Wait()

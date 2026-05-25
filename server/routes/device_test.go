@@ -16,6 +16,10 @@ import (
 	mock_domain "mqtt-streaming-server/mocks"
 )
 
+func withRole(req *http.Request, role string) *http.Request {
+	return req.WithContext(context.WithValue(req.Context(), "role", role))
+}
+
 type mockMQTTToken struct {
 	err error
 }
@@ -375,6 +379,41 @@ func TestDeviceController_SendCommand(t *testing.T) {
 			}
 			if mqttClient.lastPayload != cmd {
 				t.Fatalf("expected payload %s, got %v", cmd, mqttClient.lastPayload)
+			}
+		})
+	}
+}
+
+func TestDeviceController_SwitchDeviceMode_InjectionPrevention(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+	}{
+		{"device ID with topic separator /", `{"id":"dev/evil","mode":"LIVE"}`},
+		{"device ID with MQTT wildcard +", `{"id":"dev+evil","mode":"LIVE"}`},
+		{"device ID with MQTT wildcard #", `{"id":"dev#evil","mode":"LIVE"}`},
+		{"empty device ID", `{"id":"","mode":"LIVE"}`},
+		{"device ID with spaces", `{"id":"dev evil","mode":"LIVE"}`},
+		{"invalid mode not in allowlist", `{"id":"dev-1","mode":"EXPLOIT"}`},
+		{"mode with shell injection", `{"id":"dev-1","mode":"LIVE; rm -rf /"}`},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			mqttClient := &mockMQTTClient{}
+			ctlr := DeviceController{Service: &DeviceService{MqttClient: mqttClient}}
+
+			req := httptest.NewRequest(http.MethodPost, "/devices/switch", strings.NewReader(tt.body))
+			req = req.WithContext(context.WithValue(req.Context(), "role", "admin"))
+			rr := httptest.NewRecorder()
+
+			ctlr.SwitchDeviceMode(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Errorf("expected status %d, got %d", http.StatusBadRequest, rr.Code)
+			}
+			if mqttClient.publishCalled {
+				t.Error("publish must not be called for invalid input")
 			}
 		})
 	}
