@@ -4,7 +4,7 @@ import pymongo
 from bson import ObjectId
 
 # Database Connection
-MONGO_URI = "mongodb://admin:supersecret@localhost:27019/"
+MONGO_URI = "mongodb://admin:supersecret@localhost:27017/?authSource=admin"
 DB_NAME = "mqtt-streaming-server"
 COLLECTION_NAME = "photos"
 
