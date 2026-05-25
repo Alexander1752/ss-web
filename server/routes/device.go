@@ -74,7 +74,11 @@ func (ctlr DeviceController) SwitchDeviceMode(w http.ResponseWriter, r *http.Req
 	}
 
 	if err := ctlr.Service.SwitchMode(req.ID, req.Mode); err != nil {
-		http.Error(w, "Failed to publish message", http.StatusInternalServerError)
+		if errors.Is(err, ErrInvalidDeviceID) || errors.Is(err, ErrInvalidMode) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else {
+			http.Error(w, "Failed to publish message", http.StatusInternalServerError)
+		}
 		return
 	}
 

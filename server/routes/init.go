@@ -115,36 +115,8 @@ var (
 	globalJWKS *keyfunc.JWKS
 )
 
-func withAuth(next http.Handler) http.Handler {
-	jwksOnce.Do(func() {
-		keycloakURL := os.Getenv("KEYCLOAK_URL")
-		if keycloakURL == "" {
-			keycloakURL = "http://keycloak:8080"
-		}
-		realm := os.Getenv("KEYCLOAK_REALM")
-		if realm == "" {
-			realm = "ss-project"
-		}
-
-		jwksURL := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/certs", keycloakURL, realm)
-		var client = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					RootCAs: utils.GetCACertPool(),
-				},
-			},
-		}
-		var err error
-		globalJWKS, err = keyfunc.Get(jwksURL, keyfunc.Options{
-			Client:          client,
-			RefreshInterval: time.Hour,
-			RefreshTimeout:  5 * time.Minute,
-		})
-		if err != nil {
-			panic(fmt.Sprintf("failed to initialize JWKS from %s: %v", jwksURL, err))
-		}
-	})
-
+// authMiddleware builds an auth handler from any jwt.Keyfunc, allowing tests to inject a mock.
+func authMiddleware(keyfuncFn jwt.Keyfunc, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
@@ -153,7 +125,7 @@ func withAuth(next http.Handler) http.Handler {
 		}
 
 		tokenString := authHeader[len("Bearer "):]
-		token, err := jwt.Parse(tokenString, globalJWKS.Keyfunc)
+		token, err := jwt.Parse(tokenString, keyfuncFn)
 		if err != nil || !token.Valid {
 			http.Error(w, "Invalid token", http.StatusUnauthorized)
 			return
@@ -186,4 +158,37 @@ func withAuth(next http.Handler) http.Handler {
 		ctx = context.WithValue(ctx, "role", role)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func withAuth(next http.Handler) http.Handler {
+	jwksOnce.Do(func() {
+		keycloakURL := os.Getenv("KEYCLOAK_URL")
+		if keycloakURL == "" {
+			keycloakURL = "http://keycloak:8080"
+		}
+		realm := os.Getenv("KEYCLOAK_REALM")
+		if realm == "" {
+			realm = "ss-project"
+		}
+
+		jwksURL := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/certs", keycloakURL, realm)
+		var client = &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					RootCAs: utils.GetCACertPool(),
+				},
+			},
+		}
+		var err error
+		globalJWKS, err = keyfunc.Get(jwksURL, keyfunc.Options{
+			Client:          client,
+			RefreshInterval: time.Hour,
+			RefreshTimeout:  5 * time.Minute,
+		})
+		if err != nil {
+			panic(fmt.Sprintf("failed to initialize JWKS from %s: %v", jwksURL, err))
+		}
+	})
+
+	return authMiddleware(globalJWKS.Keyfunc, next)
 }
